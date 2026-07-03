@@ -1,0 +1,80 @@
+export const TileTypes = {
+  Grass: 1,
+  GrassAlt: 2,
+  Path: 3,
+  Water: 4,
+  Blocked: 5,
+  Sand: 6,
+  Cliff: 7
+} as const;
+
+export type TileType = (typeof TileTypes)[keyof typeof TileTypes];
+
+export const TileFeatureTypes = {
+  None: "none",
+  Tree: "tree",
+  Rock: "rock",
+  Bush: "bush"
+} as const;
+
+export type TileFeatureType = (typeof TileFeatureTypes)[keyof typeof TileFeatureTypes];
+
+export type TileDefinition = Readonly<{
+  id: TileType;
+  blocksMovement: boolean;
+}>;
+
+export type TileFeatureDefinition = Readonly<{
+  id: TileFeatureType;
+  blocksMovement: boolean;
+}>;
+
+export const TileDefinitions: Readonly<Record<TileType, TileDefinition>> = {
+  [TileTypes.Grass]: {
+    id: TileTypes.Grass,
+    blocksMovement: false
+  },
+  [TileTypes.GrassAlt]: {
+    id: TileTypes.GrassAlt,
+    blocksMovement: false
+  },
+  [TileTypes.Path]: {
+    id: TileTypes.Path,
+    blocksMovement: false
+  },
+  [TileTypes.Water]: {
+    id: TileTypes.Water,
+    blocksMovement: true
+  },
+  [TileTypes.Blocked]: {
+    id: TileTypes.Blocked,
+    blocksMovement: true
+  },
+  [TileTypes.Sand]: {
+    id: TileTypes.Sand,
+    blocksMovement: false
+  },
+  [TileTypes.Cliff]: {
+    id: TileTypes.Cliff,
+    blocksMovement: true
+  }
+};
+
+export const TileFeatureDefinitions: Readonly<Record<TileFeatureType, TileFeatureDefinition>> = {
+  [TileFeatureTypes.None]: {
+    id: TileFeatureTypes.None,
+    blocksMovement: false
+  },
+  [TileFeatureTypes.Tree]: {
+    id: TileFeatureTypes.Tree,
+    blocksMovement: true
+  },
+  [TileFeatureTypes.Rock]: {
+    id: TileFeatureTypes.Rock,
+    blocksMovement: true
+  },
+  [TileFeatureTypes.Bush]: {
+    id: TileFeatureTypes.Bush,
+    blocksMovement: true
+  }
+};

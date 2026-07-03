@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": false,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["client/src/*"],
+      "@assets/*": ["client/src/assets/*"],
+      "@core/*": ["client/src/core/*"],
+      "@entities/*": ["client/src/entities/*"],
+      "@game/*": ["client/src/game/*"],
+      "@scenes/*": ["client/src/game/scenes/*"],
+      "@services/*": ["client/src/services/*"],
+      "@shared/*": ["client/src/shared/*"],
+      "@styles/*": ["client/src/styles/*"],
+      "@world/*": ["client/src/world/*"]
+    }
+  },
+  "include": ["client/src"]
+}
