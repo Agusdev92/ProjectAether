@@ -35,6 +35,7 @@ import type { PoiDefinition } from "@world/poi/PoiTypes";
 import { createDefaultRequirementRegistry } from "@world/requirements/RequirementEvaluators";
 import type { RequirementRegistry } from "@world/requirements/RequirementRegistry";
 import type { RequirementContext, RequirementSnapshot } from "@world/requirements/RequirementTypes";
+import type { WorldSaveSnapshot } from "@world/save/SaveTypes";
 import { WorldTilemap } from "@world/tilemap/WorldTilemap";
 import { FirstCoastZone } from "@world/zones/FirstCoastZone";
 import type { ZoneDefinition } from "@world/zones/ZoneDefinition";
@@ -268,6 +269,36 @@ export class WorldSession {
    */
   public consumePoiDiscoveries(): readonly PoiDefinition[] {
     return this.pois.discoverNear(this.player.position);
+  }
+
+  /**
+   * Assembles the full player-progress save from every subsystem's own
+   * shape. WorldSession is the only place that knows all of them at once —
+   * the same role it already plays for buildRequirementContext().
+   */
+  public get snapshot(): WorldSaveSnapshot {
+    return {
+      zoneId: this.zone.tilemap.id,
+      player: { x: this.player.position.x, y: this.player.position.y },
+      inventory: this.inventory.rawSlots,
+      equipment: this.equipment.rawLoadout,
+      worldClock: this.clock.snapshot,
+      interactableExhaustion: this.interactions.exhaustionSnapshot(this.elapsedSeconds)
+    };
+  }
+
+  /**
+   * Restores every subsystem from a save. zoneId is intentionally not
+   * applied: WorldSession always constructs the zone it was given at
+   * creation, and no zone-switching flow exists yet to act on a different
+   * saved zone — a documented no-op, not an oversight.
+   */
+  public restore(snapshot: WorldSaveSnapshot): void {
+    this.player.teleport(snapshot.player);
+    this.inventory.restore(snapshot.inventory);
+    this.equipment.restore(snapshot.equipment);
+    this.clock.restore(snapshot.worldClock);
+    this.interactions.restoreExhaustion(snapshot.interactableExhaustion);
   }
 
   /**

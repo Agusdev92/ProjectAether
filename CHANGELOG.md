@@ -1,5 +1,70 @@
 # Changelog
 
+## Sprint 12 - Unified Save System
+
+- Nuevo sistema de guardado unificado: inventario, equipamiento, posicion del
+  jugador, zona y el reloj del mundo (ya persistido desde Sprint 11) ahora
+  sobreviven a cerrar y volver a abrir el juego. Un unico save implicito, sin
+  UI de "nueva partida" ni multiples slots — explicitamente fuera de alcance.
+- `WorldSaveSnapshot` (`world/save/SaveTypes.ts`) agrega las formas que cada
+  subsistema ya expone: slots crudos de `Inventory`, loadout crudo de
+  `EquipmentLoadout`, `WorldClockSnapshot` sin cambios, posicion del jugador y
+  agotamiento de interactuables. `WorldSession.snapshot`/`restore()` es el
+  unico lugar que conoce las cinco formas a la vez — mismo rol que ya cumple
+  `buildRequirementContext()` para equipamiento y requisitos.
+- Nuevo puerto `SaveStore` (`services/persistence/SaveStore.ts`), mismo patron
+  que `ClockStore` (Sprint 11): `LocalStorageSaveStore` guarda/carga bajo la
+  clave `aether:save:v1`; `NullSaveStore` es el no-op. `WorldScene` guarda el
+  snapshot cada `GameConstants.save.saveIntervalMs` y al cerrar la escena
+  (`Phaser.Scenes.Events.SHUTDOWN`) — mismo patron de timer + shutdown que
+  Sprint 11 ya establecio para el reloj.
+- `WorldClock` y `ClockStore` no se modificaron. `WorldSaveSnapshot.worldClock`
+  es el mismo `WorldClockSnapshot` de siempre; `WorldSession.restore()` llama
+  exactamente `this.clock.restore(...)`, la misma llamada publica que
+  `WorldScene` ya hacia — el desacople que Sprint 11 dejo preparado a
+  proposito funciono sin tocar ninguno de los dos archivos.
+- Migracion desde el save del reloj de Sprint 11: si todavia no existe un save
+  unificado, `WorldScene` lee `aether:world-clock:v1` una unica vez (la API
+  publica de `ClockStore`, sin modificarla) para no perder el tiempo de mundo
+  de una partida vieja. Inventario, equipamiento y posicion arrancan desde
+  cero en ese caso — nunca existieron antes de este sprint.
+- Versionado con el mismo criterio que `aether:world-clock:v1`: la version
+  vive en la clave de `localStorage` (`aether:save:v1`), no en un campo interno
+  del snapshot. Un save ausente, corrupto o con forma inesperada se trata
+  igual: se ignora y el juego arranca de cero (con el intento de migracion del
+  reloj de todas formas) — nunca corrompe ni malinterpreta datos viejos. Un
+  cambio de formato incompatible a futuro sube la clave a `:v2`.
+- Se decidio incluir la persistencia del agotamiento de interactuables
+  (`InteractableRegistry.exhaustionSnapshot`/`restoreExhaustion`,
+  `InteractionManager` como passthrough) aunque no estaba en el pedido
+  original: sin esto, recargar la pagina reseteaba todos los hallazgos unicos
+  (Cabeza de Hacha Oxidada, madera y piedras sueltas) a disponibles,
+  permitiendo duplicarlos indefinidamente — rompe la escasez que Sprint 9/10
+  construyeron a proposito segun el criterio de `PLAYER_EXPERIENCE.md`
+  (horas 0-2, competencia ganada). Se guarda el tiempo _restante_, no un
+  timestamp absoluto, porque `elapsedSeconds` reinicia en 0 cada sesion; los
+  hallazgos permanentes (`Number.POSITIVE_INFINITY`) se codifican como el
+  string `"infinite"` porque `JSON.stringify` convierte `Infinity` en `null`
+  silenciosamente.
+- `Inventory.restore()`, `InventoryManager.rawSlots`/`restore()`,
+  `EquipmentLoadout.restore()` y `EquipmentManager.rawLoadout`/`restore()`
+  son nuevos. Las restauraciones de inventario y equipamiento descartan
+  itemIds que ya no existan en el catalogo en vez de romper — lectura
+  defensiva, no una promesa de integridad de datos entre versiones futuras.
+- Nuevo `Player.teleport()`: setea posicion directo, sin resolucion de
+  colision — para restaurar una posicion ya valida de un save, nunca para
+  movimiento de gameplay.
+- `zoneId` se guarda en el snapshot por completitud del contrato, pero
+  restaurarlo es un no-op documentado: `WorldSession` siempre construye
+  `FirstCoastZone` porque todavia no existe ningun flujo de cambio de zona.
+- Fuera de alcance, evaluado y descartado segun `PLAYER_EXPERIENCE.md`: el
+  descubrimiento de POIs (`PoiRegistry.discoveredIds`) no se persiste — perder
+  ese estado al recargar solo repite una notificacion de "descubierto", nunca
+  duplica ni pierde progreso real.
+- `GameConstants.clock.saveIntervalMs` se elimino (sin uso tras este sprint,
+  no era parte del contrato de `ClockStore`); nueva seccion
+  `GameConstants.save.saveIntervalMs` para el guardado unificado.
+
 ## Sprint 11 - NPC Foundation + World Clock
 
 - Nuevo `WorldClock` (`world/clock/`): calendario propio del mundo, distinto de

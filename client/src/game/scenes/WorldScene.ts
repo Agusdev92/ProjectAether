@@ -14,7 +14,8 @@ import { AmbientSoundManager } from "@services/audio/AmbientSoundManager";
 import { NullSoundPlayer } from "@services/audio/SoundPlayer";
 import { gameEvents } from "@services/events/GameEvents";
 import { LocalStorageClockStore } from "@services/persistence/ClockStore";
-import type { ClockStore } from "@services/persistence/ClockStore";
+import { LocalStorageSaveStore } from "@services/persistence/SaveStore";
+import type { SaveStore } from "@services/persistence/SaveStore";
 import { GameConstants } from "@shared/config/GameConstants";
 import { AmbientEffectTypes } from "@world/atmosphere/AtmosphereTypes";
 import type { AmbientEffectType } from "@world/atmosphere/AtmosphereTypes";
@@ -45,7 +46,7 @@ export class WorldScene extends Phaser.Scene {
   private openStationKind: string | null = null;
   private survivalCraftKey?: ActionKey;
   private npcRenderer?: NpcRenderer;
-  private readonly clockStore: ClockStore = new LocalStorageClockStore();
+  private readonly saveStore: SaveStore = new LocalStorageSaveStore();
   private lastTimeOfDay?: TimeOfDayType;
   private readonly unsubscribeHandlers: Array<() => void> = [];
 
@@ -55,11 +56,8 @@ export class WorldScene extends Phaser.Scene {
 
   public create(): void {
     const { definition } = this.worldSession.tilemap;
-    const clockSnapshot = this.clockStore.load();
 
-    if (clockSnapshot) {
-      this.worldSession.clock.restore(clockSnapshot);
-    }
+    this.loadSave();
 
     gameEvents.emit("world:entered", { zoneId: definition.id });
     gameEvents.emit("world:map-loaded", {
@@ -98,24 +96,49 @@ export class WorldScene extends Phaser.Scene {
       this.emitEquipmentSnapshot();
     });
     this.registerCraftingHandlers();
-    this.registerClockPersistence();
+    this.registerSavePersistence();
   }
 
   /**
-   * Periodically saves the world clock so a closed tab doesn't lose elapsed
-   * in-game time, plus a final save on shutdown. ClockStore is the only
-   * persistence port this sprint touches — Sprint 12's save system can
-   * replace or absorb it without WorldClock ever changing.
+   * Loads the unified save if one exists and restores every subsystem from
+   * it. If none exists yet, falls back to a one-time migration from Sprint
+   * 11's standalone clock save (ClockStore's own public API, untouched) so
+   * upgrading to the unified save never erases elapsed world time. Inventory,
+   * equipment, and position simply start fresh in that case — there was
+   * never a unified save to restore them from.
    */
-  private registerClockPersistence(): void {
+  private loadSave(): void {
+    const save = this.saveStore.load();
+
+    if (save) {
+      this.worldSession.restore(save);
+
+      return;
+    }
+
+    const legacyClockSnapshot = new LocalStorageClockStore().load();
+
+    if (legacyClockSnapshot) {
+      this.worldSession.clock.restore(legacyClockSnapshot);
+    }
+  }
+
+  /**
+   * Periodically saves the full unified snapshot so a closed tab doesn't lose
+   * progress, plus a final save on shutdown. Same timer + shutdown pattern
+   * Sprint 11 used for the clock alone; this replaces that continuous save
+   * (the clock is now one field inside the unified snapshot) without ever
+   * touching WorldClock or ClockStore's contract.
+   */
+  private registerSavePersistence(): void {
     this.time.addEvent({
-      delay: GameConstants.clock.saveIntervalMs,
+      delay: GameConstants.save.saveIntervalMs,
       loop: true,
-      callback: () => this.clockStore.save(this.worldSession.clock.snapshot)
+      callback: () => this.saveStore.save(this.worldSession.snapshot)
     });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.clockStore.save(this.worldSession.clock.snapshot);
+      this.saveStore.save(this.worldSession.snapshot);
     });
   }
 

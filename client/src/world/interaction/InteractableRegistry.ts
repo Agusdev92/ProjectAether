@@ -1,6 +1,10 @@
 import { GameConstants } from "@shared/config/GameConstants";
 import type { WorldCoordinate } from "@world/coordinates/WorldCoordinates";
-import type { Interactable, InteractableSource } from "@world/interaction/InteractionTypes";
+import type {
+  ExhaustionSnapshot,
+  Interactable,
+  InteractableSource
+} from "@world/interaction/InteractionTypes";
 import type { RequirementContext, RequirementQuery } from "@world/requirements/RequirementTypes";
 
 /**
@@ -82,6 +86,49 @@ export class InteractableRegistry {
         ? Number.POSITIVE_INFINITY
         : nowSeconds + durationSeconds
     );
+  }
+
+  /**
+   * Persists exhaustion as *remaining* seconds relative to nowSeconds, not the
+   * absolute "until" value — a fresh session's elapsedSeconds restarts at 0,
+   * so an absolute timestamp from a previous session would be meaningless.
+   * Entries that already recovered (remaining <= 0) are dropped instead of
+   * saved as a negative number.
+   */
+  public exhaustionSnapshot(nowSeconds: number): ExhaustionSnapshot {
+    const snapshot: Record<string, number | "infinite"> = {};
+
+    for (const [interactableId, until] of this.exhaustedUntilSeconds) {
+      if (until === Number.POSITIVE_INFINITY) {
+        snapshot[interactableId] = "infinite";
+
+        continue;
+      }
+
+      const remaining = until - nowSeconds;
+
+      if (remaining > 0) {
+        snapshot[interactableId] = remaining;
+      }
+    }
+
+    return snapshot;
+  }
+
+  /**
+   * Restores exhaustion from a save. Remaining seconds become the new
+   * "until" value directly, since a freshly restored session's elapsedSeconds
+   * starts at 0.
+   */
+  public restoreExhaustion(snapshot: ExhaustionSnapshot): void {
+    this.exhaustedUntilSeconds.clear();
+
+    for (const [interactableId, remaining] of Object.entries(snapshot)) {
+      this.exhaustedUntilSeconds.set(
+        interactableId,
+        remaining === "infinite" ? Number.POSITIVE_INFINITY : remaining
+      );
+    }
   }
 
   private collectCandidates(position: WorldCoordinate): Interactable[] {

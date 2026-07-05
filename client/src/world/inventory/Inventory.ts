@@ -81,6 +81,17 @@ export class Inventory {
   }
 
   /**
+   * Overwrites every slot from a persisted snapshot. Slots beyond the given
+   * array (or beyond current capacity) are cleared — a capacity change
+   * between saves never leaves stale stacks behind.
+   */
+  public restore(slots: readonly InventorySlot[]): void {
+    for (let index = 0; index < this.slots.length; index += 1) {
+      this.slots[index] = slots[index] ?? null;
+    }
+  }
+
+  /**
    * Removes up to the requested quantity of an item and returns how much was
    * actually removed. Future crafting and trading consume through this.
    */

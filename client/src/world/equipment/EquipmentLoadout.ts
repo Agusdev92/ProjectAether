@@ -31,4 +31,11 @@ export class EquipmentLoadout {
   public isFree(slot: EquipmentSlot): boolean {
     return this.get(slot) === null;
   }
+
+  /** Overwrites every slot from a persisted snapshot; unknown slots are ignored. */
+  public restore(entries: Readonly<Record<EquipmentSlot, string | null>>): void {
+    for (const slot of EquipmentSlotOrder) {
+      this.slots.set(slot, entries[slot] ?? null);
+    }
+  }
 }

@@ -2,6 +2,7 @@ import { Inventory } from "@world/inventory/Inventory";
 import type { ItemRegistry } from "@world/inventory/ItemRegistry";
 import type {
   InventoryItemView,
+  InventorySlot,
   InventorySnapshot,
   ItemGrant
 } from "@world/inventory/InventoryTypes";
@@ -45,6 +46,22 @@ export class InventoryManager {
 
   public countOf(itemId: string): number {
     return this.bag.countOf(itemId);
+  }
+
+  /** Raw slot contents for persistence — compact, catalog-agnostic. */
+  public get rawSlots(): readonly InventorySlot[] {
+    return this.bag.allSlots;
+  }
+
+  /**
+   * Restores slots from a save. Any itemId no longer present in the catalog
+   * (a future content change) is dropped instead of crashing — a defensive
+   * read, not a silent data-integrity promise.
+   */
+  public restore(slots: readonly InventorySlot[]): void {
+    const validated = slots.map((slot) => (slot && this.registry.has(slot.itemId) ? slot : null));
+
+    this.bag.restore(validated);
   }
 
   /** Presentation snapshot of the bag, resolved against the catalog. */

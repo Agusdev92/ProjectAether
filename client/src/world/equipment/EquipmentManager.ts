@@ -51,6 +51,33 @@ export class EquipmentManager implements EquipmentQuery {
     return this.loadout.get(slot);
   }
 
+  /** Raw loadout for persistence — itemId per slot, no presentation fields. */
+  public get rawLoadout(): Readonly<Record<EquipmentSlot, string | null>> {
+    const entries = EquipmentSlotOrder.map((slot) => [slot, this.loadout.get(slot)] as const);
+
+    return Object.fromEntries(entries) as Readonly<Record<EquipmentSlot, string | null>>;
+  }
+
+  /**
+   * Restores the loadout from a save. Any itemId no longer present in the
+   * equipment catalog (a future content change) is dropped instead of
+   * crashing — a defensive read, not a silent data-integrity promise.
+   */
+  public restore(raw: Readonly<Record<EquipmentSlot, string | null>>): void {
+    const validated = EquipmentSlotOrder.reduce<Record<EquipmentSlot, string | null>>(
+      (accumulator, slot) => {
+        const itemId = raw[slot];
+
+        accumulator[slot] = itemId && this.registry.has(itemId) ? itemId : null;
+
+        return accumulator;
+      },
+      {} as Record<EquipmentSlot, string | null>
+    );
+
+    this.loadout.restore(validated);
+  }
+
   /**
    * Tool classification of whatever occupies the Tool slot, if any. Consumed
    * only by WorldSession to build a RequirementContext — the requirement

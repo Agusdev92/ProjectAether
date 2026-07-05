@@ -94,7 +94,8 @@ ProjectAether/
 │     │  ├─ events/
 │     │  │  └─ GameEvents.ts
 │     │  ├─ persistence/
-│     │  │  └─ ClockStore.ts
+│     │  │  ├─ ClockStore.ts
+│     │  │  └─ SaveStore.ts
 │     │  └─ index.ts
 │     ├─ shared/
 │     │  ├─ config/
@@ -152,6 +153,8 @@ ProjectAether/
 │     │  │  ├─ RequirementEvaluators.ts
 │     │  │  ├─ RequirementRegistry.ts
 │     │  │  └─ RequirementTypes.ts
+│     │  ├─ save/
+│     │  │  └─ SaveTypes.ts
 │     │  ├─ tilemap/
 │     │  │  ├─ TerrainResolver.ts
 │     │  │  ├─ TileTypes.ts
@@ -322,6 +325,16 @@ ProjectAether/
   `SoundPlayer`.
 - `client/src/game/rendering/NpcRenderer.ts`: presenta NPCs con primitivas
   Phaser; anima el cambio de waypoint con un fade en vez de un pop instantaneo.
+- `client/src/world/save/SaveTypes.ts`: `WorldSaveSnapshot`, el agregado de todo
+  lo que persiste el progreso del jugador (zona, posicion, inventario,
+  equipamiento, reloj del mundo, agotamiento de interactuables). Sin campo de
+  version propio: igual que `WorldClockSnapshot`, versionar es trabajo de la
+  clave de almacenamiento, no del dominio.
+- `client/src/services/persistence/SaveStore.ts`: puerto de persistencia
+  unificado (`LocalStorageSaveStore`/`NullSaveStore`), mismo patron que
+  `ClockStore`. `WorldScene` lo usa para el guardado periodico y de cierre;
+  `ClockStore` sigue existiendo intacto y se usa una sola vez, como migracion,
+  cuando todavia no existe un save unificado.
 - `eslint.config.js`: reglas de lint para TypeScript.
 - `.prettierrc.json`: reglas de formato compartidas.
 
@@ -473,6 +486,40 @@ ProjectAether/
   un teletransporte: no hay pathfinding ni animacion de caminata este sprint.
   Limitacion documentada explicitamente con un TODO en `GameConstants.npc`
   para Sprint 12+, no un bug silencioso.
+- Sistema de guardado unificado (`world/save/`, `services/persistence/SaveStore.ts`):
+  `WorldSaveSnapshot` agrega las formas que cada subsistema ya expone
+  (`InventorySlot[]` crudo, loadout de equipamiento crudo, `WorldClockSnapshot`,
+  posicion del jugador, agotamiento de interactuables). `WorldSession` es el
+  unico lugar que conoce las cinco formas a la vez — el mismo rol que ya
+  cumple para `buildRequirementContext()`.
+- `WorldClock` y `ClockStore` no se tocaron: `WorldSaveSnapshot.worldClock` es
+  el mismo `WorldClockSnapshot` de siempre, y `WorldSession.restore()` llama
+  exactamente `this.clock.restore(...)`, la misma llamada publica que
+  `WorldScene` ya hacia — solo cambia quien la invoca. `ClockStore.ts` sigue
+  intacto en el repo; `WorldScene` lo usa una unica vez, como migracion, si
+  todavia no existe un save unificado (para no perder el tiempo de mundo de
+  una partida de Sprint 11 al actualizar).
+- Se decidio persistir el agotamiento de interactuables
+  (`InteractableRegistry.exhaustionSnapshot`/`restoreExhaustion`) aunque no
+  estaba en el pedido original: sin esto, recargar la pagina reseteaba todos
+  los hallazgos unicos (Cabeza de Hacha Oxidada, madera/piedra sueltas) a
+  disponibles, permitiendo duplicarlos indefinidamente — rompe justo la
+  escasez que Sprint 9/10 construyeron. Se guarda el tiempo _restante_, no un
+  timestamp absoluto, porque `elapsedSeconds` reinicia en 0 cada sesion; los
+  hallazgos permanentes (`Number.POSITIVE_INFINITY`) se codifican como el
+  string `"infinite"` porque `JSON.stringify` convierte `Infinity` en `null`.
+- Sin campo `version` en `WorldSaveSnapshot`: igual que `WorldClockSnapshot`,
+  versionar es responsabilidad de la clave de `localStorage`
+  (`aether:save:v1`). Un save con formato incompatible simplemente no aparece
+  bajo una clave nueva (`:v2` a futuro) — la opcion mas simple que nunca
+  corrompe ni malinterpreta datos viejos, mismo criterio ya documentado para
+  `ClockStore`.
+- `zoneId` se guarda para completitud del contrato pero restaurarlo es un
+  no-op documentado: `WorldSession` siempre construye `FirstCoastZone` porque
+  todavia no existe ningun flujo de cambio de zona.
+- El descubrimiento de POIs (`PoiRegistry.discoveredIds`) queda fuera de este
+  sprint a proposito: perderlo al recargar solo repite una notificacion de
+  "descubierto", nunca duplica ni pierde progreso real.
 - El tileset temporal esta renderizado con primitivas Phaser en
   `IsometricTilemapRenderer`. Esto permite iterar direccion visual sin fijar
   todavia un pipeline de arte definitivo.
@@ -540,6 +587,11 @@ Incluido:
 - Fundacion de NPCs: un NPC concreto (Amaro, pescador/artesano) con rutina de
   3 puntos atada al reloj, con transicion de fade entre waypoints. Se
   actualiza independientemente de la posicion del jugador.
+- Sistema de guardado unificado: inventario, equipamiento, posicion del
+  jugador, reloj del mundo y agotamiento de interactuables (incluidos los
+  hallazgos unicos) sobreviven a cerrar y volver a abrir el juego. Guardado
+  automatico periodico y al cerrar la escena; un unico save implicito, sin
+  UI de "nueva partida" ni multiples slots todavia.
 
 No incluido en esta tarea:
 
@@ -553,6 +605,8 @@ No incluido en esta tarea:
 - IA.
 - Multijugador.
 - Red.
-- Persistencia (sistema de guardado unificado; el reloj tiene su propia
-  persistencia acotada).
+- UI de "nueva partida", multiples slots de guardado, o cambio de zona real
+  (el `zoneId` del save se guarda pero restaurarlo es un no-op hoy).
+- Descubrimiento de POIs persistente (se resetea al recargar; no rompe nada,
+  solo repite una notificacion).
 - Servidor de juego.

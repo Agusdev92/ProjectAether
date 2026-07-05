@@ -126,8 +126,10 @@ export type {
 } from "@world/inventory/InventoryTypes";
 export type { InteractionReport } from "@world/WorldSession";
 export type { TimeOfDayType, WorldClockSnapshot } from "@world/clock/WorldClockTypes";
+export type { ExhaustionSnapshot } from "@world/interaction/InteractionTypes";
 export type { NpcDefinition, NpcPositionView, NpcScheduleEntry } from "@world/npc/NpcTypes";
 export type { PoiDefinition, PoiFootprint, PoiType } from "@world/poi/PoiTypes";
+export type { WorldSaveSnapshot } from "@world/save/SaveTypes";
 export type { TerrainResolver, TerrainSample } from "@world/tilemap/TerrainResolver";
 export type {
   TileDefinition,

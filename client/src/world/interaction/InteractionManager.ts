@@ -1,6 +1,7 @@
 import type { EquipmentQuery } from "@world/equipment/EquipmentTypes";
 import type { InteractableRegistry } from "@world/interaction/InteractableRegistry";
 import type {
+  ExhaustionSnapshot,
   Interactable,
   InteractionHandler,
   InteractionOutcome,
@@ -73,5 +74,15 @@ export class InteractionManager {
     }
 
     return { interactable, result };
+  }
+
+  /** Persistence passthrough — see InteractableRegistry.exhaustionSnapshot. */
+  public exhaustionSnapshot(nowSeconds: number): ExhaustionSnapshot {
+    return this.registry.exhaustionSnapshot(nowSeconds);
+  }
+
+  /** Persistence passthrough — see InteractableRegistry.restoreExhaustion. */
+  public restoreExhaustion(snapshot: ExhaustionSnapshot): void {
+    this.registry.restoreExhaustion(snapshot);
   }
 }

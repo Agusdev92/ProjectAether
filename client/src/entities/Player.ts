@@ -20,6 +20,14 @@ export class Player {
     return this.transform;
   }
 
+  /**
+   * Sets position directly, bypassing collision resolution — for restoring a
+   * previously-valid position from a save, not for gameplay movement.
+   */
+  public teleport(position: EntityTransform): void {
+    this.transform = position;
+  }
+
   public move(
     movement: MovementVector,
     deltaSeconds: number,

@@ -52,7 +52,9 @@ export const GameConstants = {
     // short enough to see the NPC's full routine repeat within one test
     // session, per Sprint 11's explicit requirement.
     timeScale: 80,
-    dayLengthInGameSeconds: 86400,
+    dayLengthInGameSeconds: 86400
+  },
+  save: {
     saveIntervalMs: 10_000
   },
   npc: {

@@ -122,3 +122,15 @@ export type InteractionOutcome = Readonly<{
   interactable: Interactable;
   result: InteractionResult;
 }>;
+
+/**
+ * JSON-safe encoding of every exhausted interactable's *remaining* seconds,
+ * keyed by id — never an absolute "until" timestamp, because the session
+ * clock (nowSeconds) restarts at 0 every session and an absolute value from a
+ * previous session would be meaningless against it. `"infinite"` stands in
+ * for Number.POSITIVE_INFINITY (permanent one-time finds like the abandoned
+ * camp or a driftwood pile): JSON.stringify silently turns Infinity into
+ * null, which would make a "never respawns" resource look available again
+ * after a reload.
+ */
+export type ExhaustionSnapshot = Readonly<Record<string, number | "infinite">>;
