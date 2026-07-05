@@ -7,14 +7,18 @@ import { KeyboardMovement } from "@game/input/KeyboardMovement";
 import { GroundClutterRenderer } from "@game/rendering/GroundClutterRenderer";
 import { InteractionIndicator } from "@game/rendering/InteractionIndicator";
 import { IsometricTilemapRenderer } from "@game/rendering/IsometricTilemapRenderer";
+import { NpcRenderer } from "@game/rendering/NpcRenderer";
 import { PoiRenderer } from "@game/rendering/PoiRenderer";
 import { SceneKeys } from "@game/scene-keys";
 import { AmbientSoundManager } from "@services/audio/AmbientSoundManager";
 import { NullSoundPlayer } from "@services/audio/SoundPlayer";
 import { gameEvents } from "@services/events/GameEvents";
+import { LocalStorageClockStore } from "@services/persistence/ClockStore";
+import type { ClockStore } from "@services/persistence/ClockStore";
 import { GameConstants } from "@shared/config/GameConstants";
 import { AmbientEffectTypes } from "@world/atmosphere/AtmosphereTypes";
 import type { AmbientEffectType } from "@world/atmosphere/AtmosphereTypes";
+import type { TimeOfDayType } from "@world/clock/WorldClockTypes";
 import { tileToWorld, worldToTile } from "@world/coordinates/WorldCoordinates";
 import { CraftingStationKinds } from "@world/crafting/CraftingTypes";
 import { WorldSession } from "@world/WorldSession";
@@ -40,6 +44,9 @@ export class WorldScene extends Phaser.Scene {
   private focusedInteractableId: string | null = null;
   private openStationKind: string | null = null;
   private survivalCraftKey?: ActionKey;
+  private npcRenderer?: NpcRenderer;
+  private readonly clockStore: ClockStore = new LocalStorageClockStore();
+  private lastTimeOfDay?: TimeOfDayType;
   private readonly unsubscribeHandlers: Array<() => void> = [];
 
   public constructor() {
@@ -48,6 +55,11 @@ export class WorldScene extends Phaser.Scene {
 
   public create(): void {
     const { definition } = this.worldSession.tilemap;
+    const clockSnapshot = this.clockStore.load();
+
+    if (clockSnapshot) {
+      this.worldSession.clock.restore(clockSnapshot);
+    }
 
     gameEvents.emit("world:entered", { zoneId: definition.id });
     gameEvents.emit("world:map-loaded", {
@@ -71,6 +83,7 @@ export class WorldScene extends Phaser.Scene {
           : []
       )
     );
+    this.npcRenderer = new NpcRenderer(this, this.tilemapRenderer);
     this.createAtmosphere();
     this.interactionKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.E);
     this.survivalCraftKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.C);
@@ -85,6 +98,25 @@ export class WorldScene extends Phaser.Scene {
       this.emitEquipmentSnapshot();
     });
     this.registerCraftingHandlers();
+    this.registerClockPersistence();
+  }
+
+  /**
+   * Periodically saves the world clock so a closed tab doesn't lose elapsed
+   * in-game time, plus a final save on shutdown. ClockStore is the only
+   * persistence port this sprint touches — Sprint 12's save system can
+   * replace or absorb it without WorldClock ever changing.
+   */
+  private registerClockPersistence(): void {
+    this.time.addEvent({
+      delay: GameConstants.clock.saveIntervalMs,
+      loop: true,
+      callback: () => this.clockStore.save(this.worldSession.clock.snapshot)
+    });
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.clockStore.save(this.worldSession.clock.snapshot);
+    });
   }
 
   /** UI requests arrive through the bus; the scene adapts, the domain decides. */
@@ -134,8 +166,26 @@ export class WorldScene extends Phaser.Scene {
     this.updateAtmospherePresentation(deltaSeconds);
     this.updateInteractionPresentation(deltaSeconds);
     this.updateSurvivalCraftingPresentation();
+    this.updateTimeOfDayPresentation();
+    this.npcRenderer?.sync(this.worldSession.getNpcPositions());
     this.emitFrameState();
     this.emitPoiDiscoveries();
+  }
+
+  /**
+   * Announces time-of-day changes on the bus. Never gated on player
+   * proximity or focus — the clock advances (and NPCs update) regardless of
+   * where the player is looking, which is this sprint's central point.
+   */
+  private updateTimeOfDayPresentation(): void {
+    const timeOfDay = this.worldSession.clock.timeOfDay;
+
+    if (timeOfDay === this.lastTimeOfDay) {
+      return;
+    }
+
+    this.lastTimeOfDay = timeOfDay;
+    gameEvents.emit("world:time-of-day-changed", { timeOfDay });
   }
 
   /**

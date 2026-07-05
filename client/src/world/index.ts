@@ -6,6 +6,10 @@ export {
   AmbientSoundChannels,
   WeatherTypes
 } from "@world/atmosphere/AtmosphereTypes";
+export { WorldClock } from "@world/clock/WorldClock";
+export { TimeOfDayTypes } from "@world/clock/WorldClockTypes";
+export { NpcRegistry } from "@world/npc/NpcRegistry";
+export { resolveScheduledTile } from "@world/npc/NpcTypes";
 export { InteractableRegistry } from "@world/interaction/InteractableRegistry";
 export { InteractionManager } from "@world/interaction/InteractionManager";
 export { createDefaultInteractionHandlers } from "@world/interaction/InteractionHandlers";
@@ -121,6 +125,8 @@ export type {
   ItemStack
 } from "@world/inventory/InventoryTypes";
 export type { InteractionReport } from "@world/WorldSession";
+export type { TimeOfDayType, WorldClockSnapshot } from "@world/clock/WorldClockTypes";
+export type { NpcDefinition, NpcPositionView, NpcScheduleEntry } from "@world/npc/NpcTypes";
 export type { PoiDefinition, PoiFootprint, PoiType } from "@world/poi/PoiTypes";
 export type { TerrainResolver, TerrainSample } from "@world/tilemap/TerrainResolver";
 export type {

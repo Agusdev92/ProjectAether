@@ -35,7 +35,8 @@ export const AsterfallZone: ZoneDefinition = {
     effects: [],
     sounds: []
   },
-  interactables: []
+  interactables: [],
+  npcs: []
 };
 
 function createAsterfallTerrain(): TerrainResolver {

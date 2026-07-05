@@ -3,8 +3,10 @@ import {
   AmbientSoundChannels,
   WeatherTypes
 } from "@world/atmosphere/AtmosphereTypes";
+import { TimeOfDayTypes } from "@world/clock/WorldClockTypes";
 import type { TileCoordinate } from "@world/coordinates/WorldCoordinates";
 import { InteractableKinds, InteractionVerbs } from "@world/interaction/InteractionTypes";
+import type { NpcDefinition } from "@world/npc/NpcTypes";
 import { PoiTypes } from "@world/poi/PoiTypes";
 import type { PoiDefinition } from "@world/poi/PoiTypes";
 import type { TerrainResolver, TerrainSample } from "@world/tilemap/TerrainResolver";
@@ -111,6 +113,36 @@ const FirstCoastPois: readonly PoiDefinition[] = [
     footprint: { widthInTiles: 1, heightInTiles: 1 },
     blocksMovement: false,
     discoveryRadiusInTiles: 3
+  }
+];
+
+/**
+ * NPCs who live in this zone, independently of the player (PROJECT_PILLARS
+ * Pilar 1). Amaro's routine reuses landmarks that already exist here — the
+ * boat wreck, the market — rather than inventing new lore: an old fisherman
+ * who mends his nets within sight of a wreck that was never explained.
+ */
+const FirstCoastNpcs: readonly NpcDefinition[] = [
+  {
+    id: "npc-amaro",
+    name: "Amaro",
+    schedule: [
+      {
+        timeOfDay: TimeOfDayTypes.Morning,
+        anchorTile: { x: 10, y: 38 },
+        activity: "reparando redes junto al naufragio"
+      },
+      {
+        timeOfDay: TimeOfDayTypes.Afternoon,
+        anchorTile: { x: 25, y: 10 },
+        activity: "vendiendo su pesca cerca del mercado"
+      },
+      {
+        timeOfDay: TimeOfDayTypes.Night,
+        anchorTile: { x: 13, y: 34 },
+        activity: "durmiendo en su refugio apartado"
+      }
+    ]
   }
 ];
 
@@ -278,7 +310,8 @@ export const FirstCoastZone: ZoneDefinition = {
       anchorTile: { x: 10, y: 40 },
       radiusInTiles: 1.5
     }
-  ]
+  ],
+  npcs: FirstCoastNpcs
 };
 
 function createFirstCoastTerrain(): TerrainResolver {

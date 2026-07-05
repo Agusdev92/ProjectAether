@@ -46,6 +46,21 @@ export const GameConstants = {
     notificationDurationMs: 2400,
     maxVisibleNotifications: 3
   },
+  clock: {
+    // Game-seconds advanced per real second. With dayLengthInGameSeconds
+    // below, one full day takes 86400 / 80 = 1080 real seconds (18 minutes) —
+    // short enough to see the NPC's full routine repeat within one test
+    // session, per Sprint 11's explicit requirement.
+    timeScale: 80,
+    dayLengthInGameSeconds: 86400,
+    saveIntervalMs: 10_000
+  },
+  npc: {
+    // TODO(Sprint 12+): replace the fade-teleport with real pathfinding and
+    // walking animation between waypoints. The fade only softens the pop;
+    // it is not a substitute for movement.
+    waypointFadeDurationMs: 500
+  },
   atmosphere: {
     lookoutVantageRadiusInTiles: 2.5,
     lookoutZoom: 0.8,
@@ -117,6 +132,8 @@ export const GameConstants = {
     bush: "#3b8a4d",
     player: "#d7b56d",
     playerShadow: "#0a0d11",
+    npc: "#8a7256",
+    npcShadow: "#0a0d11",
     debugBackground: "#0d1117"
   },
   fonts: {

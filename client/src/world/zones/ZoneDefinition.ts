@@ -1,14 +1,15 @@
 import type { ZoneAtmosphereDefinition } from "@world/atmosphere/AtmosphereTypes";
 import type { ZoneInteractableDefinition } from "@world/interaction/InteractionTypes";
+import type { NpcDefinition } from "@world/npc/NpcTypes";
 import type { PoiDefinition } from "@world/poi/PoiTypes";
 import type { TerrainResolver } from "@world/tilemap/TerrainResolver";
 import type { WorldTilemapDefinition } from "@world/tilemap/WorldTilemap";
 
 /**
  * ZoneDefinition is the unit of world content: one map, its terrain rules,
- * its points of interest, and its atmosphere. It is intentionally
- * serializable-friendly (except the resolver) because zones are what a future
- * server will stream to clients.
+ * its points of interest, its atmosphere, and the NPCs who live there. It is
+ * intentionally serializable-friendly (except the resolver) because zones are
+ * what a future server will stream to clients.
  */
 export type ZoneDefinition = Readonly<{
   tilemap: WorldTilemapDefinition;
@@ -16,4 +17,5 @@ export type ZoneDefinition = Readonly<{
   pois: readonly PoiDefinition[];
   atmosphere: ZoneAtmosphereDefinition;
   interactables: readonly ZoneInteractableDefinition[];
+  npcs: readonly NpcDefinition[];
 }>;

@@ -77,6 +77,7 @@ ProjectAether/
 │     │  │  ├─ GroundClutterRenderer.ts
 │     │  │  ├─ InteractionIndicator.ts
 │     │  │  ├─ IsometricTilemapRenderer.ts
+│     │  │  ├─ NpcRenderer.ts
 │     │  │  ├─ PoiRenderer.ts
 │     │  │  └─ RenderPrimitives.ts
 │     │  ├─ scene-keys.ts
@@ -92,6 +93,8 @@ ProjectAether/
 │     │  │  └─ SoundPlayer.ts
 │     │  ├─ events/
 │     │  │  └─ GameEvents.ts
+│     │  ├─ persistence/
+│     │  │  └─ ClockStore.ts
 │     │  └─ index.ts
 │     ├─ shared/
 │     │  ├─ config/
@@ -107,6 +110,9 @@ ProjectAether/
 │     │  ├─ atmosphere/
 │     │  │  ├─ AtmosphereManager.ts
 │     │  │  └─ AtmosphereTypes.ts
+│     │  ├─ clock/
+│     │  │  ├─ WorldClock.ts
+│     │  │  └─ WorldClockTypes.ts
 │     │  ├─ collision/
 │     │  │  └─ CollisionProvider.ts
 │     │  ├─ crafting/
@@ -136,6 +142,9 @@ ProjectAether/
 │     │  │  ├─ InventoryTypes.ts
 │     │  │  ├─ ItemCatalog.ts
 │     │  │  └─ ItemRegistry.ts
+│     │  ├─ npc/
+│     │  │  ├─ NpcRegistry.ts
+│     │  │  └─ NpcTypes.ts
 │     │  ├─ poi/
 │     │  │  ├─ PoiRegistry.ts
 │     │  │  └─ PoiTypes.ts
@@ -298,6 +307,21 @@ ProjectAether/
   tile y proyeccion isometrica.
 - `client/src/world/collision/CollisionProvider.ts`: contrato de colisiones
   consumido por entidades de dominio.
+- `client/src/world/clock/WorldClockTypes.ts`: contratos de franja horaria
+  (`TimeOfDayType`) y del snapshot persistido (`WorldClockSnapshot`).
+- `client/src/world/clock/WorldClock.ts`: calendario propio del mundo, distinto
+  de `WorldSession.elapsedSeconds`; deriva la franja horaria de
+  `elapsedGameSeconds` sin simular nada por frame.
+- `client/src/world/npc/NpcTypes.ts`: `NpcDefinition` como dato puro (igual que
+  `ItemDefinition`) y `resolveScheduledTile`, la funcion pura que resuelve la
+  posicion de un NPC a partir de su rutina y la hora del dia.
+- `client/src/world/npc/NpcRegistry.ts`: registro de NPCs de la zona activa,
+  mismo patron que `PoiRegistry` (contenido de zona, no catalogo global).
+- `client/src/services/persistence/ClockStore.ts`: puerto de persistencia del
+  reloj (`LocalStorageClockStore`/`NullClockStore`), mismo patron que
+  `SoundPlayer`.
+- `client/src/game/rendering/NpcRenderer.ts`: presenta NPCs con primitivas
+  Phaser; anima el cambio de waypoint con un fade en vez de un pop instantaneo.
 - `eslint.config.js`: reglas de lint para TypeScript.
 - `.prettierrc.json`: reglas de formato compartidas.
 
@@ -429,6 +453,26 @@ ProjectAether/
 - `RequirementSnapshot` y `findNearestIgnoringRequirements` existen solo para
   diagnostico de desarrollo — nunca se muestran al jugador. El mundo se
   mantiene silencioso; el equipo puede seguir viendo por que algo no responde.
+- `WorldClock` es un concepto distinto de `WorldSession.elapsedSeconds`:
+  conflar ambos haria que el tiempo de calendario persistido (que puede saltar
+  horas entre sesiones) adelantara cooldowns de recursos y estaciones que
+  deben resetear por sesion. Son dos relojes con proposito diferente.
+- Los NPC son datos de zona (`NpcRegistry`, construido desde `zone.npcs`),
+  mismo patron que `PoiRegistry` — no un catalogo global como items o equipo —
+  porque su rutina ancla a la geografia especifica de esa zona.
+- La posicion de un NPC es una consulta pura (`resolveScheduledTile`), nunca
+  simulada por frame: se recalcula desde cero en cada consulta a partir de la
+  definicion y la hora del dia. Esto satisface el Pilar 1 (el mundo sigue
+  existiendo sin el jugador) sin costo de ingenieria extra — no hay nada
+  corriendo en segundo plano que pueda desincronizarse.
+- `ClockStore` replica el patron de puerto de `SoundPlayer`/`NullSoundPlayer`:
+  el dominio (`WorldClock`) solo ve un `WorldClockSnapshot`, nunca el puerto.
+  El sistema de guardado completo del Sprint 12 puede absorber o reemplazar
+  `LocalStorageClockStore` sin que `WorldClock` cambie.
+- La transicion de NPC entre waypoints tiene un fade corto pero sigue siendo
+  un teletransporte: no hay pathfinding ni animacion de caminata este sprint.
+  Limitacion documentada explicitamente con un TODO en `GameConstants.npc`
+  para Sprint 12+, no un bug silencioso.
 - El tileset temporal esta renderizado con primitivas Phaser en
   `IsometricTilemapRenderer`. Esto permite iterar direccion visual sin fijar
   todavia un pipeline de arte definitivo.
@@ -491,6 +535,11 @@ Incluido:
   cumplen segun la herramienta equipada.
 - Developer Overlay con FPS, coordenadas, mapa, POIs descubiertos, clima y
   estado de camara.
+- Reloj del mundo persistente (franjas manana/tarde/noche) con ciclo corto
+  configurable, y guardado/restauracion via `localStorage`.
+- Fundacion de NPCs: un NPC concreto (Amaro, pescador/artesano) con rutina de
+  3 puntos atada al reloj, con transicion de fade entre waypoints. Se
+  actualiza independientemente de la posicion del jugador.
 
 No incluido en esta tarea:
 
@@ -499,9 +548,11 @@ No incluido en esta tarea:
 - Habilidades y experiencia.
 - Reputacion.
 - Progresion de profesiones.
-- NPC.
+- Dialogo o interaccion con NPCs; pathfinding y animacion de caminata real (el
+  movimiento actual es teletransporte con fade).
 - IA.
 - Multijugador.
 - Red.
-- Persistencia.
+- Persistencia (sistema de guardado unificado; el reloj tiene su propia
+  persistencia acotada).
 - Servidor de juego.

@@ -1,5 +1,65 @@
 # Changelog
 
+## Sprint 11 - NPC Foundation + World Clock
+
+- Nuevo `WorldClock` (`world/clock/`): calendario propio del mundo, distinto de
+  `WorldSession.elapsedSeconds` (tiempo de sesion usado para cooldowns de
+  recursos y estaciones de crafteo). Conflar ambos hubiera sido un error: este
+  reloj persiste entre sesiones y corre a un multiplicador configurable
+  (`GameConstants.clock.timeScale`), asi que cargar una partida vieja nunca
+  debe adelantar cooldowns por haber pasado mucho tiempo de juego mientras el
+  juego estaba cerrado.
+- `TimeOfDayType` (`morning`/`afternoon`/`night`) se deriva siempre de
+  `elapsedGameSeconds`, nunca se guarda por separado — los dos no pueden
+  desincronizarse porque solo existe un valor fuente. Duracion del dia
+  configurable en `GameConstants.clock.dayLengthInGameSeconds`; con el
+  `timeScale` inicial, un dia completo dura ~18 minutos reales, para poder ver
+  la rutina de un NPC repetirse varias veces en una sola sesion de prueba.
+- Nuevo puerto de persistencia `ClockStore` (`services/persistence/`), mismo
+  patron que `SoundPlayer`/`NullSoundPlayer` (Sprint 4): `LocalStorageClockStore`
+  guarda/carga `WorldClockSnapshot` (`{ elapsedGameSeconds }`) en
+  `localStorage`, `NullClockStore` es el no-op para entornos sin almacenamiento.
+  `WorldClock` nunca conoce este puerto: solo ve el snapshot. El sistema de
+  guardado completo del Sprint 12 puede absorber o reemplazar este store sin
+  tocar `WorldClock`.
+- `WorldScene` guarda el reloj cada `GameConstants.clock.saveIntervalMs` y al
+  cerrar la escena (`Phaser.Scenes.Events.SHUTDOWN`), y lo restaura al entrar
+  si existe un snapshot guardado.
+- Fundacion de NPCs (`world/npc/`): `NpcDefinition` es dato puro (id, nombre,
+  `schedule`), igual que `ItemDefinition`/`EquipmentDefinition` — sin
+  comportamiento propio. A diferencia de items/equipo, los NPCs son contenido
+  de zona (su rutina ancla a la geografia de esa zona especifica), asi que
+  siguen el patron de `PoiRegistry`: `NpcRegistry` se construye desde
+  `zone.npcs`, no desde un catalogo global.
+- `resolveScheduledTile(definition, timeOfDay)` es una funcion pura: la
+  posicion de un NPC nunca se simula por frame, se recalcula desde cero en
+  cada consulta a partir de la definicion y la hora del dia. Esto es lo que
+  permite que el NPC exista independientemente de si el jugador lo esta
+  mirando (Pilar 1 de PROJECT_PILLARS): no hay nada corriendo en segundo plano
+  que pueda desincronizarse.
+- `WorldSession.getNpcPositions()` expone esta consulta a la capa de
+  presentacion; nunca esta condicionada a la proximidad del jugador — el NPC
+  se actualiza aunque el jugador este en otro punto de la zona.
+- Primer NPC concreto: Amaro, pescador/artesano viejo de la costa. Rutina de 3
+  puntos reutilizando puntos de referencia ya existentes en la zona (sin
+  inventar lore nueva): manana junto al naufragio (reparando redes), tarde
+  cerca del mercado (vendiendo su pesca), noche en un refugio apartado
+  (durmiendo).
+- Nuevo `NpcRenderer` (capa de render), mismo patron que `PoiRenderer`: cuando
+  la posicion de un NPC cambia entre franjas horarias, en vez de un pop
+  instantaneo hace un fade-out -> reposiciona -> fade-in
+  (`GameConstants.npc.waypointFadeDurationMs`). Sigue siendo un teletransporte
+  bajo el fade — sin pathfinding, sin animacion de caminata. TODO explicito en
+  `GameConstants.npc` para reemplazar esto por pathfinding real y animacion en
+  Sprint 12+; no es un bug silencioso, es una limitacion documentada.
+- Nuevo evento `world:time-of-day-changed`, emitido por `WorldScene` en cada
+  cambio de franja horaria. El Developer Overlay (`UIScene`) muestra la hora
+  del dia actual con el mismo patron ya usado para el clima.
+- Sin dialogo ni interaccion con el NPC este sprint; sin IA compleja. El
+  contrato que queda listo para el proximo sprint: `WorldClockSnapshot` puede
+  incorporarse a una estructura de guardado mas grande sin que `WorldClock`
+  cambie.
+
 ## Sprint 10 - World Requirement System
 
 - Se creo el sistema generico de requisitos del mundo (`world/requirements/`):

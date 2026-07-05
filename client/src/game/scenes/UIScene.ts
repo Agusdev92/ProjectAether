@@ -30,6 +30,7 @@ type DeveloperOverlayState = {
   poiDiscovered: number;
   lastPoiName: string;
   weather: string;
+  timeOfDay: string;
   playerWorldX: number;
   playerWorldY: number;
   playerTileX: number;
@@ -55,6 +56,7 @@ export class UIScene extends Phaser.Scene {
     poiDiscovered: 0,
     lastPoiName: "-",
     weather: "-",
+    timeOfDay: "-",
     playerWorldX: 0,
     playerWorldY: 0,
     playerTileX: 0,
@@ -227,6 +229,9 @@ export class UIScene extends Phaser.Scene {
       }),
       gameEvents.on("atmosphere:weather-changed", (payload) => {
         this.overlayState.weather = payload.weather;
+      }),
+      gameEvents.on("world:time-of-day-changed", (payload) => {
+        this.overlayState.timeOfDay = payload.timeOfDay;
       }),
       gameEvents.on("interaction:performed", (payload) => {
         // Station-opening interactions carry no message: the UI is the feedback.
@@ -748,6 +753,7 @@ export class UIScene extends Phaser.Scene {
       `Tile: ${this.overlayState.playerTileX}, ${this.overlayState.playerTileY}`,
       `POI: ${this.overlayState.poiDiscovered}/${this.overlayState.poiTotal} (${this.overlayState.lastPoiName})`,
       `Clima: ${this.overlayState.weather}`,
+      `Hora del dia: ${this.overlayState.timeOfDay}`,
       `Cam scroll: ${this.overlayState.cameraScrollX.toFixed(1)}, ${this.overlayState.cameraScrollY.toFixed(1)}`,
       `Cam center: ${this.overlayState.cameraCenterX.toFixed(1)}, ${this.overlayState.cameraCenterY.toFixed(1)}`,
       `Following: ${this.overlayState.cameraFollowing ? "yes" : "no"}`

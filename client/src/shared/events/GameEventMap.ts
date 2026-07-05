@@ -149,6 +149,9 @@ export type GameEventMap = {
   "world:lookout-exited": {
     readonly poiId: string;
   };
+  "world:time-of-day-changed": {
+    readonly timeOfDay: string;
+  };
   "ui:hud-ready": undefined;
   "debug:overlay-toggled": {
     readonly enabled: boolean;

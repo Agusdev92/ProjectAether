@@ -2,6 +2,7 @@ import { Player } from "@entities/Player";
 import type { MovementVector } from "@entities/EntityTypes";
 import { GameConstants } from "@shared/config/GameConstants";
 import { AtmosphereManager } from "@world/atmosphere/AtmosphereManager";
+import { WorldClock } from "@world/clock/WorldClock";
 import type { CollisionProvider } from "@world/collision/CollisionProvider";
 import { CraftingManager } from "@world/crafting/CraftingManager";
 import { createDefaultRecipeRegistry } from "@world/crafting/RecipeCatalog";
@@ -25,6 +26,9 @@ import type {
 import { InventoryManager } from "@world/inventory/InventoryManager";
 import { createDefaultItemRegistry } from "@world/inventory/ItemCatalog";
 import type { ItemGrant } from "@world/inventory/InventoryTypes";
+import { NpcRegistry } from "@world/npc/NpcRegistry";
+import { resolveScheduledTile } from "@world/npc/NpcTypes";
+import type { NpcPositionView } from "@world/npc/NpcTypes";
 import { PoiRegistry } from "@world/poi/PoiRegistry";
 import { PoiTypes } from "@world/poi/PoiTypes";
 import type { PoiDefinition } from "@world/poi/PoiTypes";
@@ -57,6 +61,8 @@ export class WorldSession {
   public readonly inventory: InventoryManager;
   public readonly crafting: CraftingManager;
   public readonly equipment: EquipmentManager;
+  public readonly clock: WorldClock;
+  public readonly npcs: NpcRegistry;
 
   private readonly collision: CollisionProvider;
   private readonly requirements: RequirementRegistry;
@@ -67,6 +73,8 @@ export class WorldSession {
     this.tilemap = new WorldTilemap(zone.tilemap, zone.terrain);
     this.pois = new PoiRegistry(zone.pois);
     this.atmosphere = new AtmosphereManager(zone.atmosphere);
+    this.clock = new WorldClock();
+    this.npcs = new NpcRegistry(zone.npcs);
     this.player = new Player("local-player", this.tilemap.spawnWorldPosition);
     this.requirements = createDefaultRequirementRegistry();
     this.interactions = this.createInteractions(zone);
@@ -89,6 +97,7 @@ export class WorldSession {
     this.elapsedSeconds += deltaSeconds;
     this.player.move(movement, deltaSeconds, this.collision);
     this.atmosphere.update(deltaSeconds);
+    this.clock.update(deltaSeconds);
   }
 
   /** The interactable the player could act on right now, if any. */
@@ -157,6 +166,21 @@ export class WorldSession {
       this.player.position,
       GameConstants.atmosphere.lookoutVantageRadiusInTiles
     );
+  }
+
+  /**
+   * Current world-space position of every NPC in the zone, resolved from the
+   * clock's time of day. A pure query, never gated on player proximity: the
+   * world keeps going whether or not anyone is watching (Pilar 1).
+   */
+  public getNpcPositions(): readonly NpcPositionView[] {
+    const timeOfDay = this.clock.timeOfDay;
+
+    return this.npcs.all.map((npc) => ({
+      id: npc.id,
+      name: npc.name,
+      position: tileToWorld(resolveScheduledTile(npc, timeOfDay))
+    }));
   }
 
   /**
