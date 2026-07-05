@@ -1,5 +1,8 @@
+import { GameConstants } from "@shared/config/GameConstants";
 import { InteractableKinds, InteractionVerbs } from "@world/interaction/InteractionTypes";
 import type {
+  Interactable,
+  InteractionContext,
   InteractionHandler,
   InteractionResult,
   InteractionVerb
@@ -113,6 +116,62 @@ const useStationHandler: InteractionHandler = (interactable): InteractionResult 
   };
 };
 
+/**
+ * Per-kind data for the Attack verb. Unarmed still lands a hit — no weapon is
+ * ever a hard wall (Regla 13) — a crafted weapon just hits meaningfully
+ * harder. The killing blow never draws a retaliation (CombatManager's rule),
+ * so this handler only narrates whichever of the three outcomes happened; it
+ * never touches inventory or player position — WorldSession applies the
+ * actual defeat consequence once it sees playerDefeated.
+ */
+const AttackTable: Readonly<
+  Record<string, Readonly<{ lootItemId: string; lootQuantity: number }>>
+> = {
+  [InteractableKinds.WildBoar]: { lootItemId: "boar-hide", lootQuantity: 1 }
+};
+
+const attackHandler: InteractionHandler = (
+  interactable: Interactable,
+  context: InteractionContext
+): InteractionResult => {
+  const entry = AttackTable[interactable.kind];
+
+  if (!entry) {
+    return failure(`${interactable.name} no reacciona al ataque.`);
+  }
+
+  const weaponDamage =
+    context.equipment.getEquippedWeaponInfo()?.damage ?? GameConstants.combat.unarmedDamage;
+  const armorHealthBonus = context.equipment.getEquippedArmorInfo()?.healthBonus ?? 0;
+  const outcome = context.combat.resolveAttack(interactable.id, weaponDamage, armorHealthBonus);
+
+  if (outcome.playerDefeated) {
+    return {
+      success: true,
+      message: `El ${interactable.name} te derriba.`,
+      yields: [],
+      exhaustForSeconds: GameConstants.combat.attackCooldownSeconds,
+      playerDefeated: true
+    };
+  }
+
+  if (outcome.creatureDefeated) {
+    return {
+      success: true,
+      message: `El ${interactable.name} huye herido.`,
+      yields: [{ itemId: entry.lootItemId, quantity: entry.lootQuantity }],
+      exhaustForSeconds: GameConstants.combat.creatureFleeSeconds
+    };
+  }
+
+  return {
+    success: true,
+    message: `Golpeás al ${interactable.name}; te devuelve el golpe.`,
+    yields: [],
+    exhaustForSeconds: GameConstants.combat.attackCooldownSeconds
+  };
+};
+
 function failure(message: string): InteractionResult {
   return { success: false, message, yields: [] };
 }
@@ -129,6 +188,7 @@ export function createDefaultInteractionHandlers(): ReadonlyMap<
   return new Map<InteractionVerb, InteractionHandler>([
     [InteractionVerbs.Gather, gatherHandler],
     [InteractionVerbs.Search, searchHandler],
-    [InteractionVerbs.UseStation, useStationHandler]
+    [InteractionVerbs.UseStation, useStationHandler],
+    [InteractionVerbs.Attack, attackHandler]
   ]);
 }

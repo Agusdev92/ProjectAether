@@ -8,6 +8,8 @@ export {
 } from "@world/atmosphere/AtmosphereTypes";
 export { WorldClock } from "@world/clock/WorldClock";
 export { TimeOfDayTypes } from "@world/clock/WorldClockTypes";
+export { CombatManager } from "@world/combat/CombatManager";
+export { CreatureRegistry } from "@world/creature/CreatureRegistry";
 export { DangerManager } from "@world/danger/DangerManager";
 export { DangerZoneRegistry } from "@world/danger/DangerZoneRegistry";
 export { NpcRegistry } from "@world/npc/NpcRegistry";
@@ -93,6 +95,7 @@ export type {
   RecipeOutput
 } from "@world/crafting/CraftingTypes";
 export type {
+  ArmorInfo,
   EquipmentChangeResult,
   EquipmentContext,
   EquipmentDefinition,
@@ -101,7 +104,8 @@ export type {
   EquipmentSlot,
   EquipmentSlotView,
   EquipmentSnapshot,
-  ToolInfo
+  ToolInfo,
+  WeaponInfo
 } from "@world/equipment/EquipmentTypes";
 export type {
   RequirementCheckView,
@@ -129,6 +133,8 @@ export type {
 } from "@world/inventory/InventoryTypes";
 export type { InteractionReport } from "@world/WorldSession";
 export type { TimeOfDayType, WorldClockSnapshot } from "@world/clock/WorldClockTypes";
+export type { CombatExchangeResult, CombatQuery } from "@world/combat/CombatTypes";
+export type { CreatureDefinition, CreaturePresenceView } from "@world/creature/CreatureTypes";
 export type { DangerReport, DangerZoneDefinition } from "@world/danger/DangerTypes";
 export type { ExhaustionSnapshot } from "@world/interaction/InteractionTypes";
 export type { NpcDefinition, NpcPositionView, NpcScheduleEntry } from "@world/npc/NpcTypes";

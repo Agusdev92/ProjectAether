@@ -43,10 +43,10 @@ export const EquipmentKinds = {
 export type EquipmentKind = (typeof EquipmentKinds)[keyof typeof EquipmentKinds];
 
 /**
- * What the equipment system knows about one item. Stats will be added here as
- * data when combat exists; requirements (skills, levels) become validator
- * checks reading this same definition. toolType/tier only apply to Tool-kind
- * equipables; everything else leaves them undefined.
+ * What the equipment system knows about one item. Requirements (skills,
+ * levels) become validator checks reading this same definition. toolType/tier
+ * only apply to Tool-kind equipables, damage only to Weapon-kind, healthBonus
+ * only to Armor-kind — everything else leaves them undefined.
  */
 export type EquipmentDefinition = Readonly<{
   itemId: string;
@@ -54,6 +54,8 @@ export type EquipmentDefinition = Readonly<{
   allowedSlots: readonly EquipmentSlot[];
   toolType?: string;
   tier?: number;
+  damage?: number;
+  healthBonus?: number;
 }>;
 
 /**
@@ -65,6 +67,16 @@ export type EquipmentDefinition = Readonly<{
 export type ToolInfo = Readonly<{
   toolType: string;
   tier: number;
+}>;
+
+/** Weapon classification of whatever occupies MainHand, if any. */
+export type WeaponInfo = Readonly<{
+  damage: number;
+}>;
+
+/** Armor classification of whatever occupies Chest, if any. */
+export type ArmorInfo = Readonly<{
+  healthBonus: number;
 }>;
 
 /** Context an equipment change executes in; grows over time (combat state). */
@@ -95,10 +107,12 @@ export type EquipmentSnapshot = Readonly<{
 }>;
 
 /**
- * Read-only view of what is equipped. Prepared for the next sprint: the
- * interaction context will carry this so the world can require tools
- * (tree -> axe, rock -> pick) without interaction ever knowing the manager.
+ * Read-only view of what is equipped, carried by the interaction context so
+ * the world can react to gear (tool-gated gathering, weapon-gated combat)
+ * without ever knowing the manager.
  */
 export type EquipmentQuery = Readonly<{
   getEquippedItemId(slot: EquipmentSlot): string | null;
+  getEquippedWeaponInfo(): WeaponInfo | undefined;
+  getEquippedArmorInfo(): ArmorInfo | undefined;
 }>;

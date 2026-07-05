@@ -73,6 +73,39 @@ export const GameConstants = {
     // spare; a second extra pile starts eating into that margin on purpose.
     tideGraceSeconds: 7
   },
+  combat: {
+    // Both sides share the same "3 hits" scale so a fight reads legibly from
+    // either side. Creature damage (1) leaves the player 2 hits of margin
+    // before the third would defeat them — enough for a real "keep fighting
+    // or retreat" decision mid-fight, never a coin flip on the first swing.
+    playerMaxHealth: 3,
+    creatureHealth: 3,
+    creatureDamage: 1,
+    // Sword is exactly double bare hands: unarmed still works (Regla 13 —
+    // no weapon is ever a hard wall) but is visibly, felt-immediately worse.
+    unarmedDamage: 1,
+    // +2 max health while worn (3 -> 5), never a flat damage reduction: with
+    // creature damage already at its smallest unit (1), subtracting armor
+    // would hit zero and remove the risk outright (Pilar 11 forbids
+    // amputating risk, only easing it). More health means more hits
+    // survived, never a hit that stops hurting.
+    leatherVestHealthBonus: 2,
+    // Reuses InteractableRegistry.exhaust()/isExhausted() for pacing — the
+    // same mechanism that already gates gather-node respawns. ~10x the
+    // flash+shake duration below, so those always resolve with room to
+    // spare before the next exchange is even possible, and the player gets
+    // a real beat to decide whether to keep swinging.
+    attackCooldownSeconds: 1.5,
+    // Longer than the attack cooldown on purpose: "fled to recover" is a
+    // bigger narrative event than "recovering from one swing". With only
+    // two boars in the whole zone and the vest recipe needing three hides,
+    // this keeps a single spot from becoming an instant farm loop without
+    // making the wait tedious.
+    creatureFleeSeconds: 90,
+    damageFlashDurationMs: 200,
+    damageShakeDurationMs: 150,
+    damageShakeIntensity: 0.005
+  },
   atmosphere: {
     lookoutVantageRadiusInTiles: 2.5,
     lookoutZoom: 0.8,
@@ -146,6 +179,8 @@ export const GameConstants = {
     playerShadow: "#0a0d11",
     npc: "#8a7256",
     npcShadow: "#0a0d11",
+    creature: "#5c4433",
+    creatureShadow: "#0a0d11",
     debugBackground: "#0d1117"
   },
   fonts: {

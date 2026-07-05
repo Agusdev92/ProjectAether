@@ -1,5 +1,89 @@
 # Changelog
 
+## Sprint 14 - Combat Foundation
+
+- Primer sistema de combate del juego. Diseño elegido tras responder cuatro
+  preguntas contra PROJECT_PILLARS antes de programar (Pilar 2/Regla 13: sin
+  arma inicial ya funcional; Pilar 8: consecuencias antes que interfaz;
+  Pilar 11: el riesgo debe doler sin expulsar; Pilar 15: ninguna mecánica solo
+  porque otros MMO la tienen):
+  1. El primer enemigo son jabalíes territoriales en las arboledas donde ya
+     se recolecta Madera — no un enemigo genérico. Refuerza, sin una sola
+     línea de diálogo nueva, por qué el campamento abandonado (Sprint 3/9) se
+     dejó a las apuradas con su hacha a medio hacer.
+  2. Sin barra de vida: `PlayerVitalityPresenter` en la cámara del mundo
+     (flash + shake al recibir un golpe, viñeta continua según vida
+     restante) — un efecto de cámara, nunca un panel de HUD.
+  3. Perder una pelea reusa literalmente el código de la marea
+     (`InventoryManager.consumeAllOfCategory(Resource)` + `Player.teleport()`
+     al spawn): nunca herramientas, nunca equipo, nunca el Curio narrativo,
+     nunca game over.
+  4. Espada Simple ya tenía receta real desde Sprint 7 (Forja, 2 Madera + 2
+     Piedra) — la Regla 13 ya estaba satisfecha; solo se le agregó `damage`
+     como dato.
+- Nuevo `world/creature/`: `CreatureDefinition` es dato puro (igual que POIs
+  y NPCs), contenido de zona vía `CreatureRegistry` construido desde
+  `zone.creatures` — no un catálogo global, porque el territorio de un
+  jabalí ancla a la geografía específica de esa zona.
+- Las criaturas se registran en el mismo `InteractableRegistry` que
+  árboles/rocas/campamento/forja, con un verbo nuevo `Attack` — reusan la
+  focalización, el indicador de interacción y la tecla `E` existentes sin
+  ningún cambio a esos sistemas.
+- Nuevo `world/combat/CombatManager.ts`: la única pieza de estado que el
+  modelo binario agotado/no-agotado de `InteractableRegistry` no puede
+  expresar — vida incremental de ambos lados de una pelea. El golpe que mata
+  nunca tiene represalia. Totalmente determinístico (sin tiradas de dados,
+  mismo criterio anti-azar que el viento y el reloj del proyecto).
+- El cooldown entre golpes y la huida tras ser derrotado reusan la misma
+  mecánica (`InteractableRegistry.exhaust()`/`isExhausted()`, ya públicos),
+  solo con duraciones distintas — cero temporizadores nuevos en esa clase.
+- No se tocó `WorldClock` (el combate no depende de la hora del día — es lo
+  que lo distingue de la marea), ni `DangerManager` (conceptos separados), ni
+  el sistema de guardado (la vida de jugador y criaturas es estado de sesión
+  transitorio, misma categoría que el dwell-timer de la marea del Sprint 13 —
+  perderla al recargar es inofensiva, nunca deshace una pérdida de recursos
+  ya aplicada).
+- `EquipmentDefinition` gana `damage?`/`healthBonus?` opcionales (mismo
+  patrón que `toolType`/`tier` del Sprint 10, solo relevantes para
+  equipables de tipo Arma/Armadura respectivamente). `EquipmentQuery` gana
+  `getEquippedWeaponInfo()`/`getEquippedArmorInfo()`, leídas por el handler
+  de ataque a través del contexto de interacción — mismo mecanismo ya
+  preparado para `equipment` desde Sprint 9.
+- Números concretos, justificados antes de implementar (mismo criterio que
+  `tideGraceSeconds` del Sprint 13): vida del jugador y del jabalí = 3 (misma
+  escala legible de ambos lados); daño de jabalí = 1 (deja 2 golpes de
+  margen antes del tercero); daño a mano = 1, con Espada Simple = 2 (el
+  doble exacto — visible de inmediato sin volver inútil pelear a mano);
+  cooldown entre golpes = 1.5s (~10x la duración del flash+shake, deja un
+  respiro real de decisión); huida tras derrota = 90s (mayor que el
+  cooldown a propósito — "se fue a recuperar" es un evento narrativo más
+  grande que "recuperarse de un golpe").
+- Recompensa concreta para que "internarme más" sea una decisión real de
+  riesgo/recompensa, no solo de riesgo: derrotar un jabalí suelta Cuero de
+  Jabalí (`boar-hide`), craftable en la Forja en un Chaleco de Cuero
+  (`leather-vest`) — la primera pieza de armadura del juego (slot Torso
+  vacío desde Sprint 8). El chaleco suma +2 a la vida máxima en vez de
+  restar daño por golpe: con el daño de jabalí ya en su unidad mínima (1),
+  restar cualquier cosa lo llevaría a 0 y eliminaría el riesgo del todo —
+  exactamente lo que Pilar 11 prohíbe ("se ajusta, se equilibra, no se
+  amputa").
+- Nuevo `game/rendering/CreatureRenderer.ts` (mismo patrón que
+  `NpcRenderer`, sin fade — las criaturas no se mueven, solo aparecen u
+  ocultan según su estado de agotamiento) y
+  `game/rendering/PlayerVitalityPresenter.ts` (flash/shake/viñeta).
+- Dos jabalíes en First Coast, uno por arboleda, ambos lejos de todo camino
+  (mismo criterio ya usado desde Sprint 8 para las rocas).
+- Verificado manualmente: intercambio completo a mano (3 golpes para matar,
+  terminando en 1/3 de vida) y con espada (menos golpes, menos daño
+  recibido); cooldown oculta y desenfoca la criatura de inmediato tras cada
+  golpe; huida dura sensiblemente más que el cooldown de golpe; loot de
+  Cuero de Jabalí otorgado solo al derrotar; crafteo de Espada Simple y
+  Chaleco de Cuero en la Forja; equipar el chaleco sube el techo de vida sin
+  curar de más (el health ratio cae si ya estabas herido, comportamiento
+  esperado); derrota del jugador narra el mensaje exacto, barre solo
+  recursos crudos, nunca toca equipo, repone en el spawn exacto, y resetea
+  la vida — nunca game over.
+
 ## Sprint 13 - Danger System
 
 - Primer sistema de riesgo real del juego, sin combate: la marea nocturna.

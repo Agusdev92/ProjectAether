@@ -74,11 +74,13 @@ ProjectAether/
 │     │  │  ├─ ActionKey.ts
 │     │  │  └─ KeyboardMovement.ts
 │     │  ├─ rendering/
+│     │  │  ├─ CreatureRenderer.ts
 │     │  │  ├─ DangerZoneRenderer.ts
 │     │  │  ├─ GroundClutterRenderer.ts
 │     │  │  ├─ InteractionIndicator.ts
 │     │  │  ├─ IsometricTilemapRenderer.ts
 │     │  │  ├─ NpcRenderer.ts
+│     │  │  ├─ PlayerVitalityPresenter.ts
 │     │  │  ├─ PoiRenderer.ts
 │     │  │  └─ RenderPrimitives.ts
 │     │  ├─ scene-keys.ts
@@ -117,12 +119,18 @@ ProjectAether/
 │     │  │  └─ WorldClockTypes.ts
 │     │  ├─ collision/
 │     │  │  └─ CollisionProvider.ts
+│     │  ├─ combat/
+│     │  │  ├─ CombatManager.ts
+│     │  │  └─ CombatTypes.ts
 │     │  ├─ crafting/
 │     │  │  ├─ CraftingManager.ts
 │     │  │  ├─ CraftingTypes.ts
 │     │  │  ├─ CraftingValidator.ts
 │     │  │  ├─ RecipeCatalog.ts
 │     │  │  └─ RecipeRegistry.ts
+│     │  ├─ creature/
+│     │  │  ├─ CreatureRegistry.ts
+│     │  │  └─ CreatureTypes.ts
 │     │  ├─ danger/
 │     │  │  ├─ DangerManager.ts
 │     │  │  ├─ DangerTypes.ts
@@ -353,6 +361,25 @@ ProjectAether/
 - `client/src/game/rendering/DangerZoneRenderer.ts`: mancha translucida sobre
   el terreno para cada zona activa — visible antes de que el jugador entre,
   nunca gateada por proximidad.
+- `client/src/world/creature/CreatureTypes.ts`: `CreatureDefinition` como dato
+  puro (igual que POIs y NPCs) y `CreaturePresenceView`, la vista resuelta
+  para el renderer (posicion + visibilidad segun agotamiento).
+- `client/src/world/creature/CreatureRegistry.ts`: registro de criaturas de la
+  zona activa, mismo patron que `PoiRegistry`/`NpcRegistry`/`DangerZoneRegistry`
+  (contenido de zona, no catalogo global).
+- `client/src/world/combat/CombatTypes.ts`: `CombatQuery` (interfaz angosta
+  que recibe el handler de ataque) y `CombatExchangeResult`.
+- `client/src/world/combat/CombatManager.ts`: la unica pieza de estado que el
+  modelo binario de `InteractableRegistry` no puede expresar — vida
+  incremental, de ambos lados de una pelea. Totalmente deterministico, sin
+  tiradas de dados, igual que el resto del proyecto.
+- `client/src/game/rendering/CreatureRenderer.ts`: presenta criaturas con
+  primitivas Phaser; oculta la criatura mientras esta agotada (huida o en
+  cooldown de golpe).
+- `client/src/game/rendering/PlayerVitalityPresenter.ts`: reemplazo diegetico
+  de una barra de vida — flash y shake de camara al recibir dano, viñeta
+  continua segun la proporcion de vida restante. Vive en la camara del mundo,
+  nunca en un panel de UI.
 - `eslint.config.js`: reglas de lint para TypeScript.
 - `.prettierrc.json`: reglas de formato compartidas.
 
@@ -584,6 +611,53 @@ ProjectAether/
   de la zona de peligro (distancia 5.1 tiles contra un radio de 4.5): su
   propia rutina ya insinuaba, desde Sprint 11, que la orilla no es segura de
   noche, sin agregar una linea de dialogo nueva.
+- Sistema de combate (`world/combat/`, `world/creature/`): el primer enemigo
+  del juego son jabalies territoriales en las arboledas donde ya se recolecta
+  Madera — no un enemigo generico "porque hace falta uno". Refuerza, sin una
+  sola linea de dialogo nueva, por que el campamento abandonado (Sprint 3/9)
+  se dejo a las apuradas con su hacha a medio hacer. Anclados lejos de todo
+  camino, mismo criterio ya usado desde Sprint 8 para las rocas.
+- Las criaturas se registran en el mismo `InteractableRegistry` que
+  arboles/rocas/campamento/forja, con un verbo nuevo (`Attack`) — reusan la
+  focalizacion, el indicador de interaccion y la tecla `E` existentes sin
+  ningun cambio. `exhaust()`/`isExhausted()`, ya publicos, cubren tanto el
+  cooldown entre golpes como la huida tras ser derrotado (misma mecanica, dos
+  duraciones) sin agregar ningun temporizador nuevo a esa clase.
+- `CombatManager` es la unica pieza de estado que el modelo binario
+  agotado/no-agotado de `InteractableRegistry` no puede expresar: vida
+  incremental de ambos lados de una pelea. No toca `WorldClock` (el combate
+  no depende de la hora del dia — es lo que lo distingue de la marea), ni
+  `DangerManager` (conceptos completamente separados), ni el sistema de
+  guardado (la vida de jugador y criaturas es estado de sesion transitorio,
+  misma categoria que el dwell-timer de la marea del Sprint 13 — perderla al
+  recargar es inofensiva, nunca deshace una perdida de recursos ya aplicada).
+- Totalmente deterministico: ningun tiro de dados, solo numeros fijos de
+  datos (`GameConstants.combat`), igual criterio anti-azar que el viento y el
+  reloj del proyecto.
+- Sin barra de vida, sin numeros de dano flotantes, sin experiencia/niveles:
+  `PlayerVitalityPresenter` vive en la camara del mundo (flash + shake al
+  recibir un golpe, viñeta continua segun la proporcion de vida) — un efecto
+  de camara, nunca un panel de HUD. El relato del intercambio reutiliza el
+  toast de notificacion ya existente (el mismo de "La marea te arrastró de
+  vuelta"), sin ningun elemento de interfaz nuevo.
+- El daño con Espada Simple es exactamente el doble que a mano (2 contra 1):
+  a mano el combate sigue siendo viable (Regla 13 — ningun arma es nunca un
+  muro duro) pero visiblemente peor, para que craftear se sienta como una
+  mejora real e inmediata.
+- La derrota del jugador reusa literalmente el codigo de la marea
+  (`InventoryManager.consumeAllOfCategory(Resource)` + `Player.teleport()`):
+  nunca toca herramientas ni equipo, nunca el Curio narrativo, nunca game
+  over. Repone en el spawn de la zona (no en un retiro por zona como la
+  marea, porque las criaturas estan dispersas por todo el mapa en vez de
+  vivir en una sola zona compartida).
+- Recompensa concreta para que "internarme mas" sea una decision real de
+  riesgo/recompensa, no solo de riesgo: derrotar un jabali suelta Cuero de
+  Jabali (`boar-hide`), craftable en la Forja en un Chaleco de Cuero — la
+  primera pieza de armadura del juego (el slot Torso estaba vacio desde
+  Sprint 8). El chaleco suma +2 a la vida maxima en vez de restar dano por
+  golpe: con el daño de jabali ya en su unidad minima (1), restar cualquier
+  cosa lo llevaria a 0 y eliminaria el riesgo del todo — exactamente lo que
+  Pilar 11 prohibe ("se ajusta, se equilibra, no se amputa").
 - El tileset temporal esta renderizado con primitivas Phaser en
   `IsometricTilemapRenderer`. Esto permite iterar direccion visual sin fijar
   todavia un pipeline de arte definitivo.
@@ -660,25 +734,33 @@ Incluido:
   visible en el terreno solo de noche; permanecer mas de
   `GameConstants.danger.tideGraceSeconds` adentro se lleva los recursos
   sueltos (nunca herramientas ni el Curio narrativo) y reposiciona al
-  jugador tierra adentro. Sin combate, sin HP, sin UI nueva — la señal y la
-  consecuencia son enteramente del mundo.
+  jugador tierra adentro. Sin UI nueva — la señal y la consecuencia son
+  enteramente del mundo.
+- Sistema de combate: jabalies territoriales en las arboledas, un enemigo por
+  arboleda. Sin barra de vida ni numeros de dano — flash/shake de camara y
+  viñeta continua segun la vida restante, mensajes narrados por el toast ya
+  existente. A mano o con Espada Simple (el doble de daño); derrotar un
+  jabali suelta Cuero de Jabali, craftable en un Chaleco de Cuero (+2 vida
+  maxima, primera pieza de armadura del juego). Perder una pelea reposiciona
+  en el spawn y cuesta los recursos sueltos que se llevaban encima — nunca
+  herramientas, nunca equipo, nunca game over.
 
 No incluido en esta tarea:
 
-- Combate.
 - Economia y comercio.
 - Habilidades y experiencia.
 - Reputacion.
 - Progresion de profesiones.
 - Dialogo o interaccion con NPCs; pathfinding y animacion de caminata real (el
   movimiento actual es teletransporte con fade).
-- IA.
+- IA compleja: las criaturas no se mueven ni patrullan (mismo criterio que
+  los NPC — un tile fijo, sin pathfinding todavia).
 - Multijugador.
 - Red.
 - UI de "nueva partida", multiples slots de guardado, o cambio de zona real
   (el `zoneId` del save se guarda pero restaurarlo es un no-op hoy).
 - Descubrimiento de POIs persistente (se resetea al recargar; no rompe nada,
   solo repite una notificacion).
-- Mas zonas de peligro que la marea nocturna, dano/perdida por combate (eso
-  es Combat Foundation, sprint futuro).
+- Mas zonas de peligro que la marea nocturna, mas especies de criaturas,
+  durabilidad de armas/armadura.
 - Servidor de juego.

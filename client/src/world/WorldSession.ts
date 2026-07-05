@@ -8,6 +8,9 @@ import { CraftingManager } from "@world/crafting/CraftingManager";
 import { createDefaultRecipeRegistry } from "@world/crafting/RecipeCatalog";
 import { UbiquitousCraftingStations } from "@world/crafting/CraftingTypes";
 import type { CraftingResult, CraftingStation, RecipeOffer } from "@world/crafting/CraftingTypes";
+import { CombatManager } from "@world/combat/CombatManager";
+import { CreatureRegistry } from "@world/creature/CreatureRegistry";
+import type { CreaturePresenceView } from "@world/creature/CreatureTypes";
 import { DangerManager } from "@world/danger/DangerManager";
 import { DangerZoneRegistry } from "@world/danger/DangerZoneRegistry";
 import type { DangerReport, DangerZoneDefinition } from "@world/danger/DangerTypes";
@@ -21,6 +24,7 @@ import { InteractableRegistry } from "@world/interaction/InteractableRegistry";
 import { InteractionManager } from "@world/interaction/InteractionManager";
 import { createDefaultInteractionHandlers } from "@world/interaction/InteractionHandlers";
 import { TileFeatureInteractableSource } from "@world/interaction/TileFeatureInteractableSource";
+import { InteractionVerbs } from "@world/interaction/InteractionTypes";
 import type {
   Interactable,
   InteractionOutcome,
@@ -69,9 +73,11 @@ export class WorldSession {
   public readonly clock: WorldClock;
   public readonly npcs: NpcRegistry;
   public readonly danger: DangerManager;
+  public readonly combat: CombatManager;
 
   private readonly collision: CollisionProvider;
   private readonly requirements: RequirementRegistry;
+  private readonly creatures: CreatureRegistry;
   private elapsedSeconds = 0;
   private pendingDangerReports: DangerReport[] = [];
 
@@ -83,6 +89,8 @@ export class WorldSession {
     this.clock = new WorldClock();
     this.npcs = new NpcRegistry(zone.npcs);
     this.danger = new DangerManager(new DangerZoneRegistry(zone.dangerZones));
+    this.creatures = new CreatureRegistry(zone.creatures);
+    this.combat = new CombatManager(this.creatures);
     this.player = new Player("local-player", this.tilemap.spawnWorldPosition);
     this.requirements = createDefaultRequirementRegistry();
     this.interactions = this.createInteractions(zone);
@@ -155,7 +163,8 @@ export class WorldSession {
       this.player.position,
       this.elapsedSeconds,
       this.equipment,
-      this.buildRequirementContext()
+      this.buildRequirementContext(),
+      this.combat
     );
 
     if (!outcome) {
@@ -168,6 +177,10 @@ export class WorldSession {
       for (const itemYield of outcome.result.yields) {
         grants.push(this.inventory.grant(itemYield.itemId, itemYield.quantity));
       }
+    }
+
+    if (outcome.result.playerDefeated) {
+      return { outcome: this.applyCombatDefeat(outcome), grants };
     }
 
     return { outcome, grants };
@@ -208,6 +221,21 @@ export class WorldSession {
    */
   public getActiveDangerZones(): readonly DangerZoneDefinition[] {
     return this.danger.getActiveZones(this.clock.timeOfDay);
+  }
+
+  /**
+   * Current presence of every creature in the zone — visible unless it is
+   * exhausted (fled, or on its short cooldown between swings). Reads
+   * InteractableRegistry's existing exhaustion state through the same
+   * passthrough already used for persistence; no new tracking anywhere.
+   */
+  public getCreaturePresence(): readonly CreaturePresenceView[] {
+    return this.creatures.all.map((creature) => ({
+      id: creature.id,
+      name: creature.name,
+      position: tileToWorld(creature.anchorTile),
+      visible: !this.interactions.isExhausted(creature.id, this.elapsedSeconds)
+    }));
   }
 
   /**
@@ -343,7 +371,9 @@ export class WorldSession {
    * Builds the interaction stack of the zone: tile features arrive through a
    * lazy source; zone-declared interactables anchor either to a POI's center
    * (places with narrative weight — camp, forge) or directly to a tile
-   * (loose ground clutter that isn't a point of interest on its own).
+   * (loose ground clutter that isn't a point of interest on its own);
+   * creatures register the same way, anchored directly to their tile, with
+   * the Attack verb.
    */
   private createInteractions(zone: ZoneDefinition): InteractionManager {
     const registry = new InteractableRegistry(this.requirements);
@@ -359,6 +389,17 @@ export class WorldSession {
         position: this.resolveInteractablePosition(definition),
         radiusInTiles: definition.radiusInTiles,
         requirements: definition.requirements
+      });
+    }
+
+    for (const creature of zone.creatures) {
+      registry.register({
+        id: creature.id,
+        kind: creature.kind,
+        name: creature.name,
+        verb: InteractionVerbs.Attack,
+        position: tileToWorld(creature.anchorTile),
+        radiusInTiles: creature.radiusInTiles
       });
     }
 
@@ -406,13 +447,40 @@ export class WorldSession {
       return "La marea te arrastró de vuelta.";
     }
 
-    const parts = lostItems.map((item) => `${item.quantity} ${item.itemName}`);
-    const itemList =
-      parts.length === 1
-        ? parts[0]
-        : `${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`;
+    return `La marea te arrastró de vuelta y se llevó ${this.formatItemList(lostItems)}.`;
+  }
 
-    return `La marea te arrastró de vuelta y se llevó ${itemList}.`;
+  /**
+   * Applies a combat defeat: same restraint as the tide (only raw resources,
+   * never tools/equipment/curios) and the same kind of reposition — here to
+   * the zone's own spawn point, since creatures are scattered across the
+   * zone rather than owning one shared retreat tile the way a single danger
+   * zone does. Never a game over; the fight itself already resets the
+   * player's health, this only handles the world-facing consequence.
+   */
+  private applyCombatDefeat(outcome: InteractionOutcome): InteractionOutcome {
+    const lostItems = this.inventory.consumeAllOfCategory(ItemCategories.Resource);
+
+    this.player.teleport(this.tilemap.spawnWorldPosition);
+
+    const lostClause = lostItems.length > 0 ? ` Perdés ${this.formatItemList(lostItems)}.` : "";
+
+    return {
+      interactable: outcome.interactable,
+      result: {
+        ...outcome.result,
+        message: `${outcome.result.message}${lostClause} Volvés en vos junto a la costa.`
+      }
+    };
+  }
+
+  /** Shared "3 Madera y 2 Piedra" list formatting for narrated consequences. */
+  private formatItemList(items: readonly ConsumedStack[]): string {
+    const parts = items.map((item) => `${item.quantity} ${item.itemName}`);
+
+    return parts.length === 1
+      ? parts[0]
+      : `${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`;
   }
 
   private resolveInteractablePosition(definition: ZoneInteractableDefinition): WorldCoordinate {

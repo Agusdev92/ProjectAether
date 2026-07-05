@@ -2,6 +2,7 @@ import { EquipmentLoadout } from "@world/equipment/EquipmentLoadout";
 import { EquipmentValidator } from "@world/equipment/EquipmentValidator";
 import { EquipmentSlotOrder, EquipmentSlots } from "@world/equipment/EquipmentTypes";
 import type {
+  ArmorInfo,
   EquipmentChangeResult,
   EquipmentContext,
   EquipmentDefinition,
@@ -9,7 +10,8 @@ import type {
   EquipmentSlot,
   EquipmentSnapshot,
   EquipmentSlotView,
-  ToolInfo
+  ToolInfo,
+  WeaponInfo
 } from "@world/equipment/EquipmentTypes";
 import type { EquipmentRegistry } from "@world/equipment/EquipmentRegistry";
 import type { InventoryManager } from "@world/inventory/InventoryManager";
@@ -97,6 +99,47 @@ export class EquipmentManager implements EquipmentQuery {
     }
 
     return { toolType: definition.toolType, tier: definition.tier };
+  }
+
+  /**
+   * Weapon classification of whatever occupies MainHand, if any. Read by the
+   * Attack interaction handler through EquipmentQuery — combat never sees
+   * this class or the equipment catalog directly.
+   */
+  public getEquippedWeaponInfo(): WeaponInfo | undefined {
+    const itemId = this.loadout.get(EquipmentSlots.MainHand);
+
+    if (!itemId) {
+      return undefined;
+    }
+
+    const definition = this.registry.find(itemId);
+
+    if (!definition || definition.damage === undefined) {
+      return undefined;
+    }
+
+    return { damage: definition.damage };
+  }
+
+  /**
+   * Armor classification of whatever occupies Chest, if any. Read the same
+   * way as weapon info — combat only ever sees a plain health bonus number.
+   */
+  public getEquippedArmorInfo(): ArmorInfo | undefined {
+    const itemId = this.loadout.get(EquipmentSlots.Chest);
+
+    if (!itemId) {
+      return undefined;
+    }
+
+    const definition = this.registry.find(itemId);
+
+    if (!definition || definition.healthBonus === undefined) {
+      return undefined;
+    }
+
+    return { healthBonus: definition.healthBonus };
   }
 
   /**

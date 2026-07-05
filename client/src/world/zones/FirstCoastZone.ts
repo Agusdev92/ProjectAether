@@ -1,3 +1,4 @@
+import { GameConstants } from "@shared/config/GameConstants";
 import {
   AmbientEffectTypes,
   AmbientSoundChannels,
@@ -5,6 +6,7 @@ import {
 } from "@world/atmosphere/AtmosphereTypes";
 import { TimeOfDayTypes } from "@world/clock/WorldClockTypes";
 import type { TileCoordinate } from "@world/coordinates/WorldCoordinates";
+import type { CreatureDefinition } from "@world/creature/CreatureTypes";
 import type { DangerZoneDefinition } from "@world/danger/DangerTypes";
 import { InteractableKinds, InteractionVerbs } from "@world/interaction/InteractionTypes";
 import type { NpcDefinition } from "@world/npc/NpcTypes";
@@ -163,6 +165,36 @@ const FirstCoastDangerZones: readonly DangerZoneDefinition[] = [
     radiusInTiles: 4.5,
     activeTimeOfDay: [TimeOfDayTypes.Night],
     retreatTile: { x: 17, y: 34 }
+  }
+];
+
+/**
+ * Jabalíes territoriales, uno por arboleda — el primer combate del juego.
+ * Anclados profundo en cada bosque, lejos de todo camino (mismo criterio ya
+ * usado desde Sprint 8 para las rocas), para que encontrarlos sea una
+ * decisión informada de "me interné demasiado", no una emboscada junto al
+ * sendero. Reafirman, sin una sola línea de dialogo nueva, por qué el
+ * campamento abandonado (Sprint 3/9) se dejó a las apuradas con su hacha a
+ * medio hacer.
+ */
+const FirstCoastCreatures: readonly CreatureDefinition[] = [
+  {
+    id: "creature-boar-western-grove",
+    name: "Jabalí",
+    kind: InteractableKinds.WildBoar,
+    anchorTile: { x: 14, y: 26 },
+    radiusInTiles: 1.8,
+    health: GameConstants.combat.creatureHealth,
+    damage: GameConstants.combat.creatureDamage
+  },
+  {
+    id: "creature-boar-eastern-grove",
+    name: "Jabalí",
+    kind: InteractableKinds.WildBoar,
+    anchorTile: { x: 36, y: 24 },
+    radiusInTiles: 1.8,
+    health: GameConstants.combat.creatureHealth,
+    damage: GameConstants.combat.creatureDamage
   }
 ];
 
@@ -332,7 +364,8 @@ export const FirstCoastZone: ZoneDefinition = {
     }
   ],
   npcs: FirstCoastNpcs,
-  dangerZones: FirstCoastDangerZones
+  dangerZones: FirstCoastDangerZones,
+  creatures: FirstCoastCreatures
 };
 
 function createFirstCoastTerrain(): TerrainResolver {

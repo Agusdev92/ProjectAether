@@ -1,3 +1,4 @@
+import type { CombatQuery } from "@world/combat/CombatTypes";
 import type { EquipmentQuery } from "@world/equipment/EquipmentTypes";
 import type { InteractableRegistry } from "@world/interaction/InteractableRegistry";
 import type {
@@ -53,7 +54,8 @@ export class InteractionManager {
     position: Readonly<{ x: number; y: number }>,
     nowSeconds: number,
     equipment: EquipmentQuery,
-    requirementContext: RequirementContext
+    requirementContext: RequirementContext,
+    combat: CombatQuery
   ): InteractionOutcome | undefined {
     const interactable = this.registry.findFocused(position, nowSeconds, requirementContext);
 
@@ -67,13 +69,18 @@ export class InteractionManager {
       throw new Error(`No handler registered for interaction verb: ${interactable.verb}`);
     }
 
-    const result = handler(interactable, { nowSeconds, equipment });
+    const result = handler(interactable, { nowSeconds, equipment, combat });
 
     if (result.success && result.exhaustForSeconds !== undefined) {
       this.registry.exhaust(interactable.id, nowSeconds, result.exhaustForSeconds);
     }
 
     return { interactable, result };
+  }
+
+  /** Presence passthrough — lets presentation know a creature is on cooldown (fled or recovering from a swing) without ever touching InteractableRegistry directly. */
+  public isExhausted(interactableId: string, nowSeconds: number): boolean {
+    return this.registry.isExhausted(interactableId, nowSeconds);
   }
 
   /** Persistence passthrough — see InteractableRegistry.exhaustionSnapshot. */

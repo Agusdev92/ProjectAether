@@ -51,6 +51,17 @@ const Recipes: readonly RecipeDefinition[] = [
       { itemId: "stone", quantity: 2 }
     ],
     outputs: [{ itemId: "simple-sword", quantity: 1 }]
+  },
+  {
+    id: "leather-vest",
+    name: "Chaleco de Cuero",
+    description: "Tres cueros y un armazón de madera para sostenerlos.",
+    stationKind: CraftingStationKinds.Forge,
+    ingredients: [
+      { itemId: "boar-hide", quantity: 3 },
+      { itemId: "wood", quantity: 1 }
+    ],
+    outputs: [{ itemId: "leather-vest", quantity: 1 }]
   }
 ];
 

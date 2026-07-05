@@ -4,11 +4,13 @@ import { EnvironmentEffects } from "@game/atmosphere/EnvironmentEffects";
 import { LookoutCamera } from "@game/atmosphere/LookoutCamera";
 import { ActionKey } from "@game/input/ActionKey";
 import { KeyboardMovement } from "@game/input/KeyboardMovement";
+import { CreatureRenderer } from "@game/rendering/CreatureRenderer";
 import { DangerZoneRenderer } from "@game/rendering/DangerZoneRenderer";
 import { GroundClutterRenderer } from "@game/rendering/GroundClutterRenderer";
 import { InteractionIndicator } from "@game/rendering/InteractionIndicator";
 import { IsometricTilemapRenderer } from "@game/rendering/IsometricTilemapRenderer";
 import { NpcRenderer } from "@game/rendering/NpcRenderer";
+import { PlayerVitalityPresenter } from "@game/rendering/PlayerVitalityPresenter";
 import { PoiRenderer } from "@game/rendering/PoiRenderer";
 import { SceneKeys } from "@game/scene-keys";
 import { AmbientSoundManager } from "@services/audio/AmbientSoundManager";
@@ -48,6 +50,8 @@ export class WorldScene extends Phaser.Scene {
   private survivalCraftKey?: ActionKey;
   private npcRenderer?: NpcRenderer;
   private dangerZoneRenderer?: DangerZoneRenderer;
+  private creatureRenderer?: CreatureRenderer;
+  private vitalityPresenter?: PlayerVitalityPresenter;
   private readonly saveStore: SaveStore = new LocalStorageSaveStore();
   private lastTimeOfDay?: TimeOfDayType;
   private readonly unsubscribeHandlers: Array<() => void> = [];
@@ -85,6 +89,8 @@ export class WorldScene extends Phaser.Scene {
     );
     this.npcRenderer = new NpcRenderer(this, this.tilemapRenderer);
     this.dangerZoneRenderer = new DangerZoneRenderer(this, this.tilemapRenderer);
+    this.creatureRenderer = new CreatureRenderer(this, this.tilemapRenderer);
+    this.vitalityPresenter = new PlayerVitalityPresenter(this);
     this.createAtmosphere();
     this.interactionKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.E);
     this.survivalCraftKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.C);
@@ -195,9 +201,18 @@ export class WorldScene extends Phaser.Scene {
     this.updateTimeOfDayPresentation();
     this.npcRenderer?.sync(this.worldSession.getNpcPositions());
     this.dangerZoneRenderer?.sync(this.worldSession.getActiveDangerZones());
+    this.creatureRenderer?.sync(this.worldSession.getCreaturePresence());
+    this.vitalityPresenter?.sync(this.getPlayerHealthRatio());
     this.emitFrameState();
     this.emitPoiDiscoveries();
     this.emitDangerEvents();
+  }
+
+  /** Reads the player's current health ratio, accounting for worn armor. */
+  private getPlayerHealthRatio(): number {
+    const armorHealthBonus = this.worldSession.equipment.getEquippedArmorInfo()?.healthBonus ?? 0;
+
+    return this.worldSession.combat.getPlayerHealthRatio(armorHealthBonus);
   }
 
   /**
@@ -265,6 +280,10 @@ export class WorldScene extends Phaser.Scene {
           message: report.outcome.result.message
         });
         this.emitInventoryGrants(report.grants);
+
+        if (report.outcome.result.playerDefeated) {
+          this.emitInventorySnapshot();
+        }
 
         const stationKind = report.outcome.result.opensStationKind;
 

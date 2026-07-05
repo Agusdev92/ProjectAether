@@ -1,3 +1,4 @@
+import type { CombatQuery } from "@world/combat/CombatTypes";
 import type { EquipmentQuery } from "@world/equipment/EquipmentTypes";
 import type { TileCoordinate, WorldCoordinate } from "@world/coordinates/WorldCoordinates";
 import type { WorldRequirement } from "@world/requirements/RequirementTypes";
@@ -11,7 +12,8 @@ import type { WorldRequirement } from "@world/requirements/RequirementTypes";
 export const InteractionVerbs = {
   Gather: "gather",
   Search: "search",
-  UseStation: "use-station"
+  UseStation: "use-station",
+  Attack: "attack"
 } as const;
 
 export type InteractionVerb = (typeof InteractionVerbs)[keyof typeof InteractionVerbs];
@@ -28,7 +30,8 @@ export const InteractableKinds = {
   Forge: "forge",
   /** Loose, hand-gatherable ground clutter — no tool required, one-time find. */
   DriftwoodPile: "driftwood-pile",
-  LooseStones: "loose-stones"
+  LooseStones: "loose-stones",
+  WildBoar: "wild-boar"
 } as const;
 
 /**
@@ -71,17 +74,20 @@ export type InteractionResult = Readonly<{
   exhaustForSeconds?: number;
   /** Set when the interaction opens a crafting station of this kind. */
   opensStationKind?: string;
+  /** Set by the Attack handler when this exchange defeats the player. */
+  playerDefeated?: boolean;
 }>;
 
 /**
  * Context handlers receive; grows over time (player, tools, server auth).
- * `equipment` is wired in ahead of use: the next sprint's tool-gated gathering
- * (tree -> hacha, roca -> pico) will read it from inside a handler, without
- * any change to InteractionManager or the handlers that don't need it yet.
+ * `combat` is prepared the same way `equipment` was ahead of Sprint 10's
+ * tool-gated gathering: only the Attack handler reads it, every other
+ * handler ignores it at no cost.
  */
 export type InteractionContext = Readonly<{
   nowSeconds: number;
   equipment: EquipmentQuery;
+  combat: CombatQuery;
 }>;
 
 /** One handler per verb. Object-specific variation lives in data tables. */

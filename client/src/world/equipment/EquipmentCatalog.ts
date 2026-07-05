@@ -35,7 +35,14 @@ const Equipables: readonly EquipmentDefinition[] = [
   {
     itemId: "simple-sword",
     kind: EquipmentKinds.Weapon,
-    allowedSlots: [EquipmentSlots.MainHand]
+    allowedSlots: [EquipmentSlots.MainHand],
+    damage: 2
+  },
+  {
+    itemId: "leather-vest",
+    kind: EquipmentKinds.Armor,
+    allowedSlots: [EquipmentSlots.Chest],
+    healthBonus: 2
   }
 ];
 

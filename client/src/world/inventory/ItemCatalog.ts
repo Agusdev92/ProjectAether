@@ -86,6 +86,28 @@ const Items: readonly ItemDefinition[] = [
     weight: 5,
     icon: "†",
     iconColor: "#aab4c4"
+  },
+  {
+    id: "boar-hide",
+    name: "Cuero de Jabalí",
+    description: "Grueso y todavía tibio. Sirve para algo más que abrigo.",
+    category: ItemCategories.Resource,
+    rarity: ItemRarities.Common,
+    maxStack: 20,
+    weight: 4,
+    icon: "◈",
+    iconColor: "#7a5c3e"
+  },
+  {
+    id: "leather-vest",
+    name: "Chaleco de Cuero",
+    description: "Cosido a mano con cuero de jabalí. No detiene un golpe, pero aguanta más.",
+    category: ItemCategories.Equipment,
+    rarity: ItemRarities.Common,
+    maxStack: 1,
+    weight: 6,
+    icon: "⛨",
+    iconColor: "#7a5c3e"
   }
 ];
 
