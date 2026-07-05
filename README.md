@@ -74,6 +74,7 @@ ProjectAether/
 │     │  │  ├─ ActionKey.ts
 │     │  │  └─ KeyboardMovement.ts
 │     │  ├─ rendering/
+│     │  │  ├─ DangerZoneRenderer.ts
 │     │  │  ├─ GroundClutterRenderer.ts
 │     │  │  ├─ InteractionIndicator.ts
 │     │  │  ├─ IsometricTilemapRenderer.ts
@@ -122,6 +123,10 @@ ProjectAether/
 │     │  │  ├─ CraftingValidator.ts
 │     │  │  ├─ RecipeCatalog.ts
 │     │  │  └─ RecipeRegistry.ts
+│     │  ├─ danger/
+│     │  │  ├─ DangerManager.ts
+│     │  │  ├─ DangerTypes.ts
+│     │  │  └─ DangerZoneRegistry.ts
 │     │  ├─ equipment/
 │     │  │  ├─ EquipmentCatalog.ts
 │     │  │  ├─ EquipmentLoadout.ts
@@ -335,6 +340,19 @@ ProjectAether/
   `ClockStore`. `WorldScene` lo usa para el guardado periodico y de cierre;
   `ClockStore` sigue existiendo intacto y se usa una sola vez, como migracion,
   cuando todavia no existe un save unificado.
+- `client/src/world/danger/DangerTypes.ts`: `DangerZoneDefinition` como dato
+  puro (igual que POIs y NPCs) y `DangerReport`, el resultado narrado listo
+  para anunciar.
+- `client/src/world/danger/DangerZoneRegistry.ts`: registro de zonas de
+  peligro de la zona activa, mismo patron que `PoiRegistry`/`NpcRegistry`
+  (contenido de zona, no catalogo global).
+- `client/src/world/danger/DangerManager.ts`: mide cuanto tiempo lleva el
+  jugador dentro de cada zona activa y dispara su consecuencia al superar
+  `GameConstants.danger.tideGraceSeconds`; nunca conoce inventario ni jugador
+  mas alla de una posicion.
+- `client/src/game/rendering/DangerZoneRenderer.ts`: mancha translucida sobre
+  el terreno para cada zona activa — visible antes de que el jugador entre,
+  nunca gateada por proximidad.
 - `eslint.config.js`: reglas de lint para TypeScript.
 - `.prettierrc.json`: reglas de formato compartidas.
 
@@ -520,6 +538,52 @@ ProjectAether/
 - El descubrimiento de POIs (`PoiRegistry.discoveredIds`) queda fuera de este
   sprint a proposito: perderlo al recargar solo repite una notificacion de
   "descubierto", nunca duplica ni pierde progreso real.
+- Sistema de peligro (`world/danger/`): el primer riesgo real del juego sin
+  combate. La marea nocturna fusiona geografia (la franja de playa donde ya
+  se recolecta madera de deriva y piedras sueltas) y el reloj del mundo (solo
+  activa de noche) — una fusion mas fuerte que cualquiera de las dos por
+  separado: sin la geografia seria "algo pasa de noche" sin cuerpo (misterio
+  hueco, Regla 6); sin el reloj seria solo "no vayas ahi", sin ventana de
+  decision real.
+- `DangerZoneDefinition` es dato puro de zona (`anchorTile`, `radiusInTiles`,
+  `activeTimeOfDay`, `retreatTile`), mismo patron que POIs y NPCs —
+  `DangerZoneRegistry` se construye desde `zone.dangerZones`, no desde un
+  catalogo global, porque su geografia ancla a la costa especifica de esa
+  zona.
+- `DangerManager` mide tiempo de permanencia por zona (`dwellSecondsByZoneId`)
+  y dispara al superar `GameConstants.danger.tideGraceSeconds` (7s, calculado
+  contra `playerSpeedPixelsPerSecond`: alcanza para notar la zona, arriesgar
+  una pieza mas a proposito, y todavia retirarse con margen real). Salir de la
+  zona o que deje de estar activa resetea el conteo a cero; ser atrapado
+  tambien lo resetea, para que la misma zona pueda atrapar de nuevo despues.
+- No se toco `WorldClock` (solo se lee `timeOfDay`, getter publico existente),
+  ni `InteractableRegistry` (concepto distinto: posicion+radio+franja horaria,
+  nada que ver con agotamiento de objetos puntuales), ni el sistema de
+  guardado (el conteo de permanencia es estado de sesion, como
+  `elapsedSeconds` — perderlo al recargar es inofensivo, a diferencia del
+  agotamiento de interactuables en Sprint 12; el efecto sobre el inventario ya
+  se persiste solo porque el save siempre lee `inventory.rawSlots` en vivo).
+- La consecuencia solo alcanza a `ItemCategories.Resource` (Madera, Piedra) —
+  nunca herramientas equipadas, nunca el Curio narrativo. Ambos recursos
+  siguen siendo obtenibles de arboles/rocas renovables en otro lado del mapa:
+  reversible por diseno, nunca game over.
+  `InventoryManager.consumeAllOfCategory()` calcula el total por itemId con
+  `countOf()` antes de remover, para no contar dos veces un stack partido en
+  varios slots.
+- La señal es unicamente el mundo: `DangerZoneRenderer` dibuja una mancha
+  translucida sobre el terreno para cada zona activa, visible antes de que el
+  jugador entre y sin importar su posicion — el riesgo nunca es opaco (Pilar
+  11). El aviso de la consecuencia reutiliza el toast de notificacion ya
+  existente (el mismo de "Inventario lleno"); no se agrego ningun elemento de
+  UI nuevo.
+- El mensaje narra la consecuencia en vez de reportarla en frio (Pilar 8):
+  "La marea te arrastró de vuelta y se llevó 3 Madera y 2 Piedra." — y nunca
+  miente: si no habia recursos de esa categoria, dice solo "La marea te
+  arrastró de vuelta.".
+- El refugio nocturno de Amaro (13,34) queda deliberadamente fuera del radio
+  de la zona de peligro (distancia 5.1 tiles contra un radio de 4.5): su
+  propia rutina ya insinuaba, desde Sprint 11, que la orilla no es segura de
+  noche, sin agregar una linea de dialogo nueva.
 - El tileset temporal esta renderizado con primitivas Phaser en
   `IsometricTilemapRenderer`. Esto permite iterar direccion visual sin fijar
   todavia un pipeline de arte definitivo.
@@ -592,6 +656,12 @@ Incluido:
   hallazgos unicos) sobreviven a cerrar y volver a abrir el juego. Guardado
   automatico periodico y al cerrar la escena; un unico save implicito, sin
   UI de "nueva partida" ni multiples slots todavia.
+- Sistema de peligro: la marea nocturna en la orilla de recoleccion. Zona
+  visible en el terreno solo de noche; permanecer mas de
+  `GameConstants.danger.tideGraceSeconds` adentro se lleva los recursos
+  sueltos (nunca herramientas ni el Curio narrativo) y reposiciona al
+  jugador tierra adentro. Sin combate, sin HP, sin UI nueva — la señal y la
+  consecuencia son enteramente del mundo.
 
 No incluido en esta tarea:
 
@@ -609,4 +679,6 @@ No incluido en esta tarea:
   (el `zoneId` del save se guarda pero restaurarlo es un no-op hoy).
 - Descubrimiento de POIs persistente (se resetea al recargar; no rompe nada,
   solo repite una notificacion).
+- Mas zonas de peligro que la marea nocturna, dano/perdida por combate (eso
+  es Combat Foundation, sprint futuro).
 - Servidor de juego.

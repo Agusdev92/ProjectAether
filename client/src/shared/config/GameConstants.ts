@@ -63,6 +63,16 @@ export const GameConstants = {
     // it is not a substitute for movement.
     waypointFadeDurationMs: 500
   },
+  danger: {
+    // How long the player can dwell inside an active danger zone before its
+    // consequence triggers. At playerSpeedPixelsPerSecond (190) and
+    // tile.collisionSize (48), crossing the zone's ~4.5 tile radius takes
+    // roughly 1.1s from its center, ~2.3s from the far edge — gathering
+    // itself is instant. 7s leaves enough budget to notice the zone, walk to
+    // one more ungathered pile and grab it, and still retreat with seconds to
+    // spare; a second extra pile starts eating into that margin on purpose.
+    tideGraceSeconds: 7
+  },
   atmosphere: {
     lookoutVantageRadiusInTiles: 2.5,
     lookoutZoom: 0.8,

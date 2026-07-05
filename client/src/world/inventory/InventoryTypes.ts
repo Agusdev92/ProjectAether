@@ -90,3 +90,14 @@ export type InventorySnapshot = Readonly<{
   totalWeight: number;
   items: readonly InventoryItemView[];
 }>;
+
+/**
+ * One item stack removed from the bag in bulk, resolved for reporting to
+ * whatever triggered the removal (e.g. a world consequence, not a player
+ * action) — distinct from ItemGrant, which reports additions.
+ */
+export type ConsumedStack = Readonly<{
+  itemId: string;
+  itemName: string;
+  quantity: number;
+}>;

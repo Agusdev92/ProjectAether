@@ -1,5 +1,70 @@
 # Changelog
 
+## Sprint 13 - Danger System
+
+- Primer sistema de riesgo real del juego, sin combate: la marea nocturna.
+  Diseño elegido tras evaluar tres direcciones contra PROJECT_PILLARS (Pilar
+  11: el riesgo debe hacer memorables las decisiones; Pilar 8: consecuencias,
+  no explicaciones) — una fusion de riesgo-por-geografia y riesgo-por-reloj
+  es mas fuerte que cualquiera de las dos aisladas: sin geografia, "algo pasa
+  de noche" es misterio hueco (Regla 6, sin verdad interna); sin el reloj,
+  "no vayas ahi" no genera una ventana de decision real.
+- Nuevo `world/danger/`: `DangerZoneDefinition` es dato puro de zona
+  (`anchorTile`, `radiusInTiles`, `activeTimeOfDay`, `retreatTile`), mismo
+  patron que POIs y NPCs. `DangerZoneRegistry` se construye desde
+  `zone.dangerZones`, no desde un catalogo global, porque la geografia de un
+  peligro ancla a la costa especifica de esa zona.
+- `DangerManager` mide cuanto lleva el jugador dentro de cada zona activa
+  (`dwellSecondsByZoneId`) y dispara al superar
+  `GameConstants.danger.tideGraceSeconds`. Salir de la zona, que deje de
+  estar activa, o ser atrapado resetean el conteo — la misma zona puede
+  atrapar de nuevo mas tarde. Pura consulta de posicion+radio+franja horaria,
+  sin conocer inventario ni jugador.
+- `tideGraceSeconds = 7`, calculado contra `playerSpeedPixelsPerSecond` (190)
+  y `tile.collisionSize` (48): cruzar el radio de la zona (~4.5 tiles) desde
+  el centro toma ~1.1s, desde el borde opuesto ~2.3s. Como el gather es
+  instantaneo, el presupuesto de 7s alcanza para notar la zona, caminar hasta
+  un monton sin recolectar y juntarlo, y todavia retirarse con margen real —
+  una segunda pieza extra ya empieza a comer ese margen, a proposito.
+- La primera zona: la misma franja de playa donde ya se recolecta madera de
+  deriva y piedras sueltas (Sprint 9), activa solo de noche. El radio cubre
+  los 8 montones existentes con margen; el refugio nocturno de Amaro (13,34)
+  queda deliberadamente afuera (distancia 5.1 tiles contra radio 4.5) — su
+  rutina, ya establecida en Sprint 11, ahora se puede releer como que el
+  pescador tampoco se queda en la orilla de noche, sin agregar una linea de
+  dialogo nueva.
+- La consecuencia solo alcanza `ItemCategories.Resource` (Madera, Piedra):
+  nuevo `InventoryManager.consumeAllOfCategory()`, que calcula el total por
+  itemId con `countOf()` antes de remover para no contar dos veces un stack
+  partido en varios slots. Nunca toca herramientas equipadas ni el Curio
+  narrativo (Cabeza de Hacha Oxidada); ambos recursos siguen siendo
+  obtenibles de arboles/rocas renovables en otro lado del mapa — reversible
+  por diseño, nunca game over ni perdida de progreso guardado.
+- Nuevo `DangerZoneRenderer` (capa de render): mancha translucida sobre el
+  terreno para cada zona activa, reutilizando el color de agua profunda
+  existente. Visible sin importar la posicion del jugador — el aviso tiene
+  que existir antes de que la consecuencia se sienta (Pilar 11: nunca riesgo
+  opaco). Ningun elemento de HUD nuevo: el aviso de la consecuencia reutiliza
+  el toast de notificacion ya existente (el mismo de "Inventario lleno").
+- El mensaje narra la consecuencia en vez de reportarla en frio (Pilar 8):
+  `"La marea te arrastró de vuelta y se llevó 3 Madera y 2 Piedra."` — y
+  nunca miente: sin recursos de esa categoria encima, dice solo
+  `"La marea te arrastró de vuelta."`.
+- No se toco `WorldClock` (solo se lee `timeOfDay`, getter publico ya
+  existente), ni `InteractableRegistry` (concepto distinto: este sistema es
+  posicion+radio+franja horaria, sin relacion con agotamiento de objetos
+  puntuales), ni el sistema de guardado (el conteo de permanencia es estado
+  de sesion, como `elapsedSeconds` — perderlo al recargar es inofensivo, a
+  diferencia del agotamiento de interactuables del Sprint 12; el efecto sobre
+  el inventario ya se persiste solo porque el save siempre lee
+  `inventory.rawSlots` en vivo).
+- Verificado manualmente: la zona se activa exactamente al empezar la noche
+  y se desactiva de dia; el overlay cubre los 8 montones de recoleccion;
+  permanecer el tiempo de gracia completo consume los recursos sueltos, deja
+  intacta la herramienta equipada, reposiciona al jugador en el retiro, y
+  muestra el mensaje narrado exacto; salir antes de tiempo no tiene costo;
+  la misma zona puede atrapar de nuevo en una visita posterior.
+
 ## Sprint 12 - Unified Save System
 
 - Nuevo sistema de guardado unificado: inventario, equipamiento, posicion del

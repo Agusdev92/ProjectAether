@@ -233,6 +233,9 @@ export class UIScene extends Phaser.Scene {
       gameEvents.on("world:time-of-day-changed", (payload) => {
         this.overlayState.timeOfDay = payload.timeOfDay;
       }),
+      gameEvents.on("danger:triggered", (payload) => {
+        this.showNotification(payload.message);
+      }),
       gameEvents.on("interaction:performed", (payload) => {
         // Station-opening interactions carry no message: the UI is the feedback.
         if (payload.message) {

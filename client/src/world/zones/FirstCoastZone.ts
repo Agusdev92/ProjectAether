@@ -5,6 +5,7 @@ import {
 } from "@world/atmosphere/AtmosphereTypes";
 import { TimeOfDayTypes } from "@world/clock/WorldClockTypes";
 import type { TileCoordinate } from "@world/coordinates/WorldCoordinates";
+import type { DangerZoneDefinition } from "@world/danger/DangerTypes";
 import { InteractableKinds, InteractionVerbs } from "@world/interaction/InteractionTypes";
 import type { NpcDefinition } from "@world/npc/NpcTypes";
 import { PoiTypes } from "@world/poi/PoiTypes";
@@ -143,6 +144,25 @@ const FirstCoastNpcs: readonly NpcDefinition[] = [
         activity: "durmiendo en su refugio apartado"
       }
     ]
+  }
+];
+
+/**
+ * La marea nocturna: la misma franja de playa donde el jugador ya recolecta
+ * madera de deriva y piedras sueltas se vuelve peligrosa de noche. El radio
+ * cubre todos los montones sueltos (ver interactables mas abajo); el refugio
+ * nocturno de Amaro (13,34) queda deliberadamente fuera de este radio para no
+ * contradecir su propia rutina. retreatTile empuja al jugador tierra adentro,
+ * cerca del campamento abandonado — nunca dentro del radio de peligro.
+ */
+const FirstCoastDangerZones: readonly DangerZoneDefinition[] = [
+  {
+    id: "danger-tide-shoreline",
+    name: "Orilla",
+    anchorTile: { x: 12, y: 39 },
+    radiusInTiles: 4.5,
+    activeTimeOfDay: [TimeOfDayTypes.Night],
+    retreatTile: { x: 17, y: 34 }
   }
 ];
 
@@ -311,7 +331,8 @@ export const FirstCoastZone: ZoneDefinition = {
       radiusInTiles: 1.5
     }
   ],
-  npcs: FirstCoastNpcs
+  npcs: FirstCoastNpcs,
+  dangerZones: FirstCoastDangerZones
 };
 
 function createFirstCoastTerrain(): TerrainResolver {

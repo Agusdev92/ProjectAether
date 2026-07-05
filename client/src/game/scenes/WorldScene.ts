@@ -4,6 +4,7 @@ import { EnvironmentEffects } from "@game/atmosphere/EnvironmentEffects";
 import { LookoutCamera } from "@game/atmosphere/LookoutCamera";
 import { ActionKey } from "@game/input/ActionKey";
 import { KeyboardMovement } from "@game/input/KeyboardMovement";
+import { DangerZoneRenderer } from "@game/rendering/DangerZoneRenderer";
 import { GroundClutterRenderer } from "@game/rendering/GroundClutterRenderer";
 import { InteractionIndicator } from "@game/rendering/InteractionIndicator";
 import { IsometricTilemapRenderer } from "@game/rendering/IsometricTilemapRenderer";
@@ -46,6 +47,7 @@ export class WorldScene extends Phaser.Scene {
   private openStationKind: string | null = null;
   private survivalCraftKey?: ActionKey;
   private npcRenderer?: NpcRenderer;
+  private dangerZoneRenderer?: DangerZoneRenderer;
   private readonly saveStore: SaveStore = new LocalStorageSaveStore();
   private lastTimeOfDay?: TimeOfDayType;
   private readonly unsubscribeHandlers: Array<() => void> = [];
@@ -82,6 +84,7 @@ export class WorldScene extends Phaser.Scene {
       )
     );
     this.npcRenderer = new NpcRenderer(this, this.tilemapRenderer);
+    this.dangerZoneRenderer = new DangerZoneRenderer(this, this.tilemapRenderer);
     this.createAtmosphere();
     this.interactionKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.E);
     this.survivalCraftKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.C);
@@ -191,8 +194,10 @@ export class WorldScene extends Phaser.Scene {
     this.updateSurvivalCraftingPresentation();
     this.updateTimeOfDayPresentation();
     this.npcRenderer?.sync(this.worldSession.getNpcPositions());
+    this.dangerZoneRenderer?.sync(this.worldSession.getActiveDangerZones());
     this.emitFrameState();
     this.emitPoiDiscoveries();
+    this.emitDangerEvents();
   }
 
   /**
@@ -494,6 +499,22 @@ export class WorldScene extends Phaser.Scene {
         tileX: poi.anchorTile.x,
         tileY: poi.anchorTile.y
       });
+    }
+  }
+
+  private emitDangerEvents(): void {
+    const reports = this.worldSession.consumeDangerEvents();
+
+    for (const report of reports) {
+      gameEvents.emit("danger:triggered", {
+        zoneId: report.zoneId,
+        zoneName: report.zoneName,
+        message: report.message
+      });
+    }
+
+    if (reports.some((report) => report.lostItems.length > 0)) {
+      this.emitInventorySnapshot();
     }
   }
 

@@ -1,9 +1,11 @@
 import { Inventory } from "@world/inventory/Inventory";
 import type { ItemRegistry } from "@world/inventory/ItemRegistry";
 import type {
+  ConsumedStack,
   InventoryItemView,
   InventorySlot,
   InventorySnapshot,
+  ItemCategory,
   ItemGrant
 } from "@world/inventory/InventoryTypes";
 
@@ -46,6 +48,35 @@ export class InventoryManager {
 
   public countOf(itemId: string): number {
     return this.bag.countOf(itemId);
+  }
+
+  /**
+   * Removes every stack of a given category from the bag — e.g. a world
+   * consequence sweeping away raw resources, never tools or curios. Computes
+   * each item's total across all slots first (via countOf) and removes it in
+   * one call, so a stack split across multiple slots is never double-counted.
+   */
+  public consumeAllOfCategory(category: ItemCategory): readonly ConsumedStack[] {
+    const itemIds = new Set<string>();
+
+    for (const slot of this.bag.allSlots) {
+      if (slot && this.registry.get(slot.itemId).category === category) {
+        itemIds.add(slot.itemId);
+      }
+    }
+
+    const consumed: ConsumedStack[] = [];
+
+    for (const itemId of itemIds) {
+      const quantity = this.bag.countOf(itemId);
+      const removed = this.bag.remove(itemId, quantity);
+
+      if (removed > 0) {
+        consumed.push({ itemId, itemName: this.registry.get(itemId).name, quantity: removed });
+      }
+    }
+
+    return consumed;
   }
 
   /** Raw slot contents for persistence — compact, catalog-agnostic. */

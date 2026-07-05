@@ -8,6 +8,8 @@ export {
 } from "@world/atmosphere/AtmosphereTypes";
 export { WorldClock } from "@world/clock/WorldClock";
 export { TimeOfDayTypes } from "@world/clock/WorldClockTypes";
+export { DangerManager } from "@world/danger/DangerManager";
+export { DangerZoneRegistry } from "@world/danger/DangerZoneRegistry";
 export { NpcRegistry } from "@world/npc/NpcRegistry";
 export { resolveScheduledTile } from "@world/npc/NpcTypes";
 export { InteractableRegistry } from "@world/interaction/InteractableRegistry";
@@ -114,6 +116,7 @@ export type {
   WorldRequirement
 } from "@world/requirements/RequirementTypes";
 export type {
+  ConsumedStack,
   InventoryAddResult,
   InventoryItemView,
   InventorySlot,
@@ -126,6 +129,7 @@ export type {
 } from "@world/inventory/InventoryTypes";
 export type { InteractionReport } from "@world/WorldSession";
 export type { TimeOfDayType, WorldClockSnapshot } from "@world/clock/WorldClockTypes";
+export type { DangerReport, DangerZoneDefinition } from "@world/danger/DangerTypes";
 export type { ExhaustionSnapshot } from "@world/interaction/InteractionTypes";
 export type { NpcDefinition, NpcPositionView, NpcScheduleEntry } from "@world/npc/NpcTypes";
 export type { PoiDefinition, PoiFootprint, PoiType } from "@world/poi/PoiTypes";

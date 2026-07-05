@@ -152,6 +152,11 @@ export type GameEventMap = {
   "world:time-of-day-changed": {
     readonly timeOfDay: string;
   };
+  "danger:triggered": {
+    readonly zoneId: string;
+    readonly zoneName: string;
+    readonly message: string;
+  };
   "ui:hud-ready": undefined;
   "debug:overlay-toggled": {
     readonly enabled: boolean;

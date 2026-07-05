@@ -8,6 +8,9 @@ import { CraftingManager } from "@world/crafting/CraftingManager";
 import { createDefaultRecipeRegistry } from "@world/crafting/RecipeCatalog";
 import { UbiquitousCraftingStations } from "@world/crafting/CraftingTypes";
 import type { CraftingResult, CraftingStation, RecipeOffer } from "@world/crafting/CraftingTypes";
+import { DangerManager } from "@world/danger/DangerManager";
+import { DangerZoneRegistry } from "@world/danger/DangerZoneRegistry";
+import type { DangerReport, DangerZoneDefinition } from "@world/danger/DangerTypes";
 import { EquipmentManager } from "@world/equipment/EquipmentManager";
 import { createDefaultEquipmentRegistry } from "@world/equipment/EquipmentCatalog";
 import { EquipmentSlotOrder } from "@world/equipment/EquipmentTypes";
@@ -25,7 +28,8 @@ import type {
 } from "@world/interaction/InteractionTypes";
 import { InventoryManager } from "@world/inventory/InventoryManager";
 import { createDefaultItemRegistry } from "@world/inventory/ItemCatalog";
-import type { ItemGrant } from "@world/inventory/InventoryTypes";
+import { ItemCategories } from "@world/inventory/InventoryTypes";
+import type { ConsumedStack, ItemGrant } from "@world/inventory/InventoryTypes";
 import { NpcRegistry } from "@world/npc/NpcRegistry";
 import { resolveScheduledTile } from "@world/npc/NpcTypes";
 import type { NpcPositionView } from "@world/npc/NpcTypes";
@@ -64,10 +68,12 @@ export class WorldSession {
   public readonly equipment: EquipmentManager;
   public readonly clock: WorldClock;
   public readonly npcs: NpcRegistry;
+  public readonly danger: DangerManager;
 
   private readonly collision: CollisionProvider;
   private readonly requirements: RequirementRegistry;
   private elapsedSeconds = 0;
+  private pendingDangerReports: DangerReport[] = [];
 
   public constructor(zone: ZoneDefinition = FirstCoastZone) {
     this.zone = zone;
@@ -76,6 +82,7 @@ export class WorldSession {
     this.atmosphere = new AtmosphereManager(zone.atmosphere);
     this.clock = new WorldClock();
     this.npcs = new NpcRegistry(zone.npcs);
+    this.danger = new DangerManager(new DangerZoneRegistry(zone.dangerZones));
     this.player = new Player("local-player", this.tilemap.spawnWorldPosition);
     this.requirements = createDefaultRequirementRegistry();
     this.interactions = this.createInteractions(zone);
@@ -99,6 +106,16 @@ export class WorldSession {
     this.player.move(movement, deltaSeconds, this.collision);
     this.atmosphere.update(deltaSeconds);
     this.clock.update(deltaSeconds);
+
+    const triggeredZone = this.danger.update(
+      this.player.position,
+      this.clock.timeOfDay,
+      deltaSeconds
+    );
+
+    if (triggeredZone) {
+      this.pendingDangerReports.push(this.applyDangerConsequence(triggeredZone));
+    }
   }
 
   /** The interactable the player could act on right now, if any. */
@@ -182,6 +199,15 @@ export class WorldSession {
       name: npc.name,
       position: tileToWorld(resolveScheduledTile(npc, timeOfDay))
     }));
+  }
+
+  /**
+   * Danger zones currently active for the clock's time of day, regardless of
+   * player position — presentation uses this to warn before anyone steps in,
+   * never gated on proximity (the risk must be legible before it is felt).
+   */
+  public getActiveDangerZones(): readonly DangerZoneDefinition[] {
+    return this.danger.getActiveZones(this.clock.timeOfDay);
   }
 
   /**
@@ -272,6 +298,18 @@ export class WorldSession {
   }
 
   /**
+   * Returns danger events triggered since the last call. The session stays
+   * event-bus agnostic here too: presentation decides how to announce them.
+   */
+  public consumeDangerEvents(): readonly DangerReport[] {
+    const reports = this.pendingDangerReports;
+
+    this.pendingDangerReports = [];
+
+    return reports;
+  }
+
+  /**
    * Assembles the full player-progress save from every subsystem's own
    * shape. WorldSession is the only place that knows all of them at once —
    * the same role it already plays for buildRequirementContext().
@@ -337,6 +375,44 @@ export class WorldSession {
       nowSeconds: this.elapsedSeconds,
       equippedTool: this.equipment.getEquippedToolInfo()
     };
+  }
+
+  /**
+   * Applies a danger zone's catch: sweeps every raw resource (never tools,
+   * never equipped items, never narrative curios) and repositions the player
+   * to the zone's retreat tile. Reversible by design — lost resources remain
+   * obtainable elsewhere in the zone; this never ends the game.
+   */
+  private applyDangerConsequence(zone: DangerZoneDefinition): DangerReport {
+    const lostItems = this.inventory.consumeAllOfCategory(ItemCategories.Resource);
+
+    this.player.teleport(tileToWorld(zone.retreatTile));
+
+    return {
+      zoneId: zone.id,
+      zoneName: zone.name,
+      message: this.formatDangerMessage(lostItems),
+      lostItems
+    };
+  }
+
+  /**
+   * Narrates the consequence instead of reporting it in the cold "lost items"
+   * sense (Pilar 8: consequences, not explanations). Never claims a loss that
+   * did not happen.
+   */
+  private formatDangerMessage(lostItems: readonly ConsumedStack[]): string {
+    if (lostItems.length === 0) {
+      return "La marea te arrastró de vuelta.";
+    }
+
+    const parts = lostItems.map((item) => `${item.quantity} ${item.itemName}`);
+    const itemList =
+      parts.length === 1
+        ? parts[0]
+        : `${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`;
+
+    return `La marea te arrastró de vuelta y se llevó ${itemList}.`;
   }
 
   private resolveInteractablePosition(definition: ZoneInteractableDefinition): WorldCoordinate {
