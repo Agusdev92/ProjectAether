@@ -30,6 +30,16 @@ export const GameConstants = {
     panelWidth: 320,
     panelRowHeight: 30
   },
+  crafting: {
+    panelWidth: 360,
+    panelHeight: 300,
+    panelRowHeight: 72
+  },
+  equipment: {
+    panelWidth: 300,
+    panelHeight: 330,
+    panelRowHeight: 30
+  },
   interaction: {
     focusRadiusInTiles: 1.6,
     sourceScanRadiusInTiles: 3,
@@ -69,6 +79,7 @@ export const GameConstants = {
     accent: "#d7b56d",
     accentHover: "#e6c980",
     accentText: "#111318",
+    danger: "#d17a6f",
     gridLine: "#263241",
     tileGrass: "#2f6f42",
     tileGrassAlt: "#3a7d4b",

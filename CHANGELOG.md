@@ -1,5 +1,146 @@
 # Changelog
 
+## Sprint 10 - World Requirement System
+
+- Se creo el sistema generico de requisitos del mundo (`world/requirements/`):
+  cualquier interactuable puede exigir condiciones sin que `InteractionManager`
+  cambie nunca. `WorldRequirement` es un dato (`{ type, params }`);
+  `RequirementRegistry` mapea tipo -> `RequirementEvaluator` (una funcion por
+  tipo) y agrega con semantica AND. Agregar Item, Quest, Skill, Reputation,
+  Weather, Time, Region o Faction es una funcion nueva + un registro nuevo,
+  nunca una modificacion del registry ni del manager.
+- El filtro ocurre dentro de `InteractableRegistry.findFocused`, en el mismo
+  lugar donde ya se descartaba un interactuable agotado: un objeto cuyo
+  requisito no se cumple simplemente no compite por el foco. `E` nunca
+  aparece, no hay mensaje de error — completamente diegetico.
+- `InteractionManager` solo gano un parametro (`RequirementContext`) que
+  reenvia sin interpretar; cero logica nueva, cero conocimiento de que existen
+  herramientas.
+- Desacople estricto: `world/requirements/` no importa nada de
+  `world/inventory` ni `world/equipment`. `RequirementContext` es una bolsa de
+  hechos neutrales (`equippedTool: { toolType, tier } | undefined`);
+  `WorldSession` es el unico que traduce entre equipamiento y requisitos.
+- Requisitos iniciales: `ToolType` y `ToolTier`. Arbol exige Hacha (Tier >= 0);
+  Roca exige Pico (Tier >= 0). Datos vivos en `TileFeatureInteractableSource`,
+  cero cambios en el pipeline de interaccion.
+- `EquipmentDefinition` gano `toolType`/`tier` opcionales; `EquipmentManager`
+  expone `getEquippedToolInfo()`. Hacha Rudimentaria = Hacha, Tier 0; Hacha
+  Simple = Hacha, Tier 1; Pico Simple = Pico, Tier 1.
+- `RequirementSnapshot` + `InteractableRegistry.findNearestIgnoringRequirements`
+  para diagnostico de desarrollo (nunca mostrado al jugador): permite ver que
+  requisito bloquea un objeto sin exponer nada en la UI del juego.
+- Fix de balance descubierto durante la verificacion manual: el Pico Simple
+  exige 3 Piedra en la Forja, pero solo existian 2 piedras sueltas
+  recolectables sin herramienta — y ahora las Rocas exigen Pico. Era un
+  candado sin salida (nunca se podia reunir suficiente piedra para el primer
+  pico). Se agregaron 3 piedras sueltas mas (total 5) para cubrir Hacha
+  Rudimentaria (1 Piedra) + Pico Simple (3 Piedra) con margen.
+
+## Sprint 9 - Survival Foundation
+
+- Adaptacion del motor a la Design Revision "The First Tool": el jugador ya no
+  hereda ninguna herramienta funcional. Toda herramienta nace de sus propias
+  manos.
+- Crafting de Supervivencia (Tier 0): nueva estacion `survival` marcada como
+  "ubicua" (`UbiquitousCraftingStations`, mapa estacion -> nombre en
+  `CraftingTypes.ts`). Esta disponible en cualquier lugar, sin interactuable
+  fisico. Cero cambios en `CraftingManager.ts` y `CraftingValidator.ts`: el
+  pipeline validar -> consumir -> otorgar sigue siendo identico para toda
+  receta, ubicua o no.
+- `WorldSession.getActiveStation()` consulta primero la tabla de estaciones
+  ubicuas y, si no aplica, cae al comportamiento de proximidad ya existente.
+  Devuelve ahora `CraftingStation` (kind + name) en vez de `Interactable`:
+  desacopla la resolucion de estacion de la existencia de un POI.
+- Nueva receta y herramienta: Hacha Rudimentaria (2 Madera + 1 Piedra, sin
+  estacion), equipable en el slot Herramienta con el `EquipmentManager`
+  existente. Cero cambios en el motor de equipamiento.
+- El campamento abandonado ya no entrega el Hacha Gastada. Entrega
+  Cabeza de Hacha Oxidada: nueva categoria de item `Curio` (evidencia
+  narrativa, sin slot de equipo, sin uso en crafting). El item viejo
+  (`worn-axe`, nunca fue equipable) se reemplazo por `rusted-axe-head`.
+- Recoleccion inicial sin herramienta: 3 piezas de madera de deriva y 2 de
+  piedras sueltas, dispersas en la playa entre el spawn y el campamento.
+  Mismos items del catalogo (Madera, Piedra); la diferencia con la tala y la
+  mineria tradicional es el agotamiento: hallazgos unicos (no respawnean),
+  no recursos renovables.
+- `ZoneInteractableDefinition` generalizado: `poiId` y `anchorTile` ahora son
+  ambos opcionales (antes solo `poiId`). Los interactuables anclados a un POI
+  siguen igual; la recoleccion suelta se ancla directo a un tile, sin generar
+  un POI ni disparar `poi:discovered` — es hallazgo casual, no punto de
+  interes curado.
+- Nuevo `GroundClutterRenderer` (capa de render) para los placeholders de
+  madera de deriva y piedras sueltas — mismo patron que `PoiRenderer`.
+- Preparacion para el proximo sprint: `InteractionContext` ahora lleva
+  `equipment: EquipmentQuery`, y `InteractionManager.interact()` lo recibe y
+  lo pasa a los handlers. Ningun handler lo usa todavia — el contrato queda
+  listo para que el proximo sprint condicione la recoleccion a la herramienta
+  equipada (arbol -> hacha, roca -> pico) sin tocar el pipeline de nuevo.
+- Nueva tecla `C`: abre/cierra el panel de Crafteo de Supervivencia ("Manos"),
+  reutilizando integramente el panel de crafting existente.
+
+## Sprint 8 - Equipment Foundation
+
+- Se creo el sistema de equipamiento en dominio: los equipables son DATOS en
+  un catalogo propio del sistema (`EquipmentDefinition` por itemId). El
+  catalogo de items y el inventario nunca aprenden de slots: un item es
+  equipable si y solo si tiene fila en `EquipmentRegistry`.
+- `EquipmentManager` como maquina generica de slots: valida contra el catalogo
+  e intercambia con el inventario de forma atomica. Nunca conoce un equipable
+  concreto; cientos de armas/herramientas/armaduras futuras son filas.
+- Seguridad absoluta de items: equipar consume del inventario y devuelve el
+  anterior; si algo falla, rollback completo. Desequipar sin espacio se
+  cancela. Nada se pierde jamas.
+- Slots implementados: mano principal, mano secundaria, herramienta, cabeza,
+  torso, piernas, pies y dos accesorios (`EquipmentSlotOrder` canonico).
+- `EquipmentLoadout` como contenedor puro de slots (reutilizable por presets y
+  NPCs) y `EquipmentValidator` para las reglas (requisitos futuros entran ahi).
+- Equipables iniciales: Hacha Simple y Pico Simple (slot herramienta), Espada
+  Simple (mano principal). El resto de los items no se puede equipar.
+- Contrato `EquipmentQuery` preparado para el proximo sprint: la interaccion
+  podra exigir herramientas (arbol -> hacha, roca -> pico) leyendo el loadout
+  sin conocer el manager. Sin restriccion activa todavia.
+- Panel de equipamiento con tecla `P` (slots, item o placeholder, boton
+  Quitar) y boton Equipar en el inventario solo para items equipables. El flag
+  `equipable` se resuelve en la escena (punto de integracion), no en el
+  dominio del inventario.
+- Nuevos eventos tipados: `equipment:changed`, `equipment:equip-requested`,
+  `equipment:unequip-requested`, `equipment:performed`.
+- ESLint: `argsIgnorePattern "^_"` para parametros de contrato intencionales.
+- Fixes de playtest en zona/tiles: las rocas ya no aparecen a menos de 2 tiles
+  de un camino, y los props recolectables (rocas y arbustos) dejaron de
+  bloquear movimiento — dos sesiones de prueba demostraron que formaban
+  bolsillos sin salida. Los arboles siguen bloqueando como muros de bosque.
+
+## Sprint 7 - Crafting Foundation
+
+- Se creo el sistema de crafting en dominio basado en datos: las recetas son
+  DATOS (`RecipeDefinition`), nunca clases. Miles de recetas futuras = filas
+  de catalogo; el pipeline no cambia.
+- `CraftingManager` ejecuta un unico pipeline generico para toda receta:
+  validar -> consumir ingredientes -> otorgar productos. No conoce ninguna
+  receta ni estacion: ambas son datos.
+- `CraftingValidator` concentra las reglas de validacion (estacion correcta,
+  materiales suficientes). Requisitos futuros (skills, herramientas, tiers de
+  estacion) se agregan como chequeos nuevos sin tocar el manager.
+- `RecipeRegistry` indexa por id y por estacion; `RecipeCatalog` con las tres
+  recetas iniciales: Hacha Simple (3 madera + 1 piedra), Pico Simple (1 madera
+  - 3 piedra), Espada Simple (2 madera + 2 piedra), todas en la Forja.
+- Las estaciones son un dato de la receta (`stationKind`), alineado con los
+  kinds de interactuables: la Forja existente abre el sistema via el verbo
+  `use-station` (campo `opensStationKind` en el resultado de interaccion).
+  Carpinteria, cocina, peleteria y alquimia seran strings nuevos en recetas
+  nuevas.
+- Un unico `ItemRegistry` compartido entre inventario y crafting: una sola
+  fuente de verdad para todo id de item. Se agregaron los tres productos al
+  catalogo (Hacha Simple, Pico Simple, Espada Simple).
+- Panel minimo de crafting: recetas de la estacion, estado de materiales
+  (tienes/necesitas), boton Fabricar activo solo cuando alcanza, cierre con
+  Esc y cierre honesto al alejarse de la estacion.
+- La UI nunca toca el dominio: pide fabricar via `crafting:craft-requested` y
+  renderiza `crafting:station-opened`; `WorldScene` adapta.
+- Nuevos eventos tipados: `crafting:station-opened`, `crafting:station-closed`,
+  `crafting:craft-requested`, `crafting:performed`.
+
 ## Sprint 6 - Inventory & Resource Foundation
 
 - Se creo el sistema de inventario en dominio basado en composicion: los items

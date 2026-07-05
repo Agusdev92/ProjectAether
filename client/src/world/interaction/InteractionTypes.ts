@@ -1,4 +1,6 @@
-import type { WorldCoordinate } from "@world/coordinates/WorldCoordinates";
+import type { EquipmentQuery } from "@world/equipment/EquipmentTypes";
+import type { TileCoordinate, WorldCoordinate } from "@world/coordinates/WorldCoordinates";
+import type { WorldRequirement } from "@world/requirements/RequirementTypes";
 
 /**
  * InteractionVerbs are the actions the interaction system knows how to run.
@@ -23,12 +25,19 @@ export const InteractableKinds = {
   Tree: "tree",
   Rock: "rock",
   Camp: "camp",
-  Forge: "forge"
+  Forge: "forge",
+  /** Loose, hand-gatherable ground clutter — no tool required, one-time find. */
+  DriftwoodPile: "driftwood-pile",
+  LooseStones: "loose-stones"
 } as const;
 
 /**
  * An Interactable is pure domain data: something in the world the player can
  * act on. It carries no behavior — the verb selects the handler that runs.
+ * requirements is optional and defaults to "always available" (an empty
+ * requirement list is vacuously satisfied); the object simply never appears
+ * focusable to a player who doesn't meet them (FIRST_HOUR: fully diegetic,
+ * no message, no disabled button — the interaction is not offered at all).
  */
 export type Interactable = Readonly<{
   id: string;
@@ -37,6 +46,7 @@ export type Interactable = Readonly<{
   verb: InteractionVerb;
   position: WorldCoordinate;
   radiusInTiles: number;
+  requirements?: readonly WorldRequirement[];
 }>;
 
 /**
@@ -63,9 +73,15 @@ export type InteractionResult = Readonly<{
   opensStationKind?: string;
 }>;
 
-/** Context handlers receive; grows over time (player, tools, server auth). */
+/**
+ * Context handlers receive; grows over time (player, tools, server auth).
+ * `equipment` is wired in ahead of use: the next sprint's tool-gated gathering
+ * (tree -> hacha, roca -> pico) will read it from inside a handler, without
+ * any change to InteractionManager or the handlers that don't need it yet.
+ */
 export type InteractionContext = Readonly<{
   nowSeconds: number;
+  equipment: EquipmentQuery;
 }>;
 
 /** One handler per verb. Object-specific variation lives in data tables. */
@@ -84,14 +100,21 @@ export type InteractableSource = Readonly<{
   findWithin(position: WorldCoordinate, radiusInTiles: number): readonly Interactable[];
 }>;
 
-/** A zone-declared interactable anchored to one of its POIs. */
+/**
+ * A zone-declared interactable. Anchors either to an existing POI's footprint
+ * (poiId — camp, forge: places with narrative weight) or directly to a tile
+ * (anchorTile — loose ground clutter that isn't a point of interest on its
+ * own and shouldn't trigger POI discovery). Exactly one of the two is set.
+ */
 export type ZoneInteractableDefinition = Readonly<{
   id: string;
   kind: string;
   name: string;
   verb: InteractionVerb;
-  poiId: string;
   radiusInTiles: number;
+  poiId?: string;
+  anchorTile?: TileCoordinate;
+  requirements?: readonly WorldRequirement[];
 }>;
 
 /** The pair returned by a performed interaction, ready to be announced. */

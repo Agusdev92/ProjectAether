@@ -9,6 +9,17 @@ import { RecipeRegistry } from "@world/crafting/RecipeRegistry";
  */
 const Recipes: readonly RecipeDefinition[] = [
   {
+    id: "rudimentary-axe",
+    name: "Hacha Rudimentaria",
+    description: "Atar piedra y madera. No hace falta nada más.",
+    stationKind: CraftingStationKinds.Survival,
+    ingredients: [
+      { itemId: "wood", quantity: 2 },
+      { itemId: "stone", quantity: 1 }
+    ],
+    outputs: [{ itemId: "rudimentary-axe", quantity: 1 }]
+  },
+  {
     id: "simple-axe",
     name: "Hacha Simple",
     description: "Un hacha tosca pero tuya.",

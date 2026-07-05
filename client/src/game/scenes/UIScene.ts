@@ -7,6 +7,20 @@ import type { GameEventMap } from "@shared/events/GameEventMap";
 
 type InventoryViewState = GameEventMap["inventory:changed"];
 type CraftingViewState = GameEventMap["crafting:station-opened"];
+type EquipmentViewState = GameEventMap["equipment:changed"];
+
+/** Presentation labels for equipment slots; the domain only knows slot ids. */
+const EquipmentSlotLabels: Readonly<Record<string, string>> = {
+  "main-hand": "Mano principal",
+  "off-hand": "Mano secundaria",
+  tool: "Herramienta",
+  head: "Cabeza",
+  chest: "Torso",
+  legs: "Piernas",
+  feet: "Pies",
+  "accessory-1": "Accesorio 1",
+  "accessory-2": "Accesorio 2"
+};
 
 type DeveloperOverlayState = {
   enabled: boolean;
@@ -73,6 +87,11 @@ export class UIScene extends Phaser.Scene {
   private craftingTitle?: Phaser.GameObjects.Text;
   private craftingState?: CraftingViewState;
   private closeKey?: ActionKey;
+  private equipmentKey?: ActionKey;
+  private equipmentPanel?: Phaser.GameObjects.Container;
+  private equipmentContent?: Phaser.GameObjects.Container;
+  private equipmentOpen = false;
+  private equipmentState: EquipmentViewState = { slots: [] };
 
   public constructor() {
     super(SceneKeys.UI);
@@ -83,8 +102,10 @@ export class UIScene extends Phaser.Scene {
     this.registerDeveloperOverlay();
     this.createInventoryPanel();
     this.createCraftingPanel();
+    this.createEquipmentPanel();
     this.registerWorldEventHandlers();
     this.inventoryKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.I);
+    this.equipmentKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.P);
     this.closeKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.ESC);
     gameEvents.emit("ui:hud-ready");
   }
@@ -92,6 +113,10 @@ export class UIScene extends Phaser.Scene {
   public update(): void {
     if (this.inventoryKey?.justPressed()) {
       this.setInventoryOpen(!this.inventoryOpen);
+    }
+
+    if (this.equipmentKey?.justPressed()) {
+      this.setEquipmentOpen(!this.equipmentOpen);
     }
 
     if (this.closeKey?.justPressed() && this.craftingState) {
@@ -204,7 +229,23 @@ export class UIScene extends Phaser.Scene {
         this.overlayState.weather = payload.weather;
       }),
       gameEvents.on("interaction:performed", (payload) => {
-        this.showNotification(payload.message);
+        // Station-opening interactions carry no message: the UI is the feedback.
+        if (payload.message) {
+          this.showNotification(payload.message);
+        }
+      }),
+      gameEvents.on("crafting:station-opened", (payload) => {
+        this.craftingState = payload;
+        this.craftingPanel?.setVisible(true);
+        this.renderCraftingContents();
+      }),
+      gameEvents.on("crafting:station-closed", () => {
+        this.closeCraftingPanel();
+      }),
+      gameEvents.on("crafting:performed", (payload) => {
+        if (payload.message) {
+          this.showNotification(payload.message);
+        }
       }),
       gameEvents.on("inventory:changed", (payload) => {
         this.inventoryState = payload;
@@ -216,6 +257,18 @@ export class UIScene extends Phaser.Scene {
       gameEvents.on("inventory:item-added", (payload) => {
         if (payload.quantityRejected > 0) {
           this.showNotification("Inventario lleno");
+        }
+      }),
+      gameEvents.on("equipment:changed", (payload) => {
+        this.equipmentState = payload;
+
+        if (this.equipmentOpen) {
+          this.renderEquipmentContents();
+        }
+      }),
+      gameEvents.on("equipment:performed", (payload) => {
+        if (payload.message) {
+          this.showNotification(payload.message);
         }
       }),
       gameEvents.on("player:moved", (payload) => {
@@ -353,11 +406,268 @@ export class UIScene extends Phaser.Scene {
       });
 
       this.inventoryContent?.add([swatch, glyph, label]);
+
+      if (item.equipable) {
+        const equipButton = this.add
+          .text(GameConstants.inventory.panelWidth - 16, rowY + 2, "Equipar", {
+            color: GameConstants.colors.accent,
+            fontFamily: GameConstants.fonts.ui,
+            fontSize: "13px",
+            fontStyle: "bold"
+          })
+          .setOrigin(1, 0)
+          .setInteractive({ useHandCursor: true });
+
+        equipButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
+          gameEvents.emit("equipment:equip-requested", { itemId: item.itemId });
+        });
+        this.inventoryContent?.add(equipButton);
+      }
     });
 
     this.inventoryFooter.setText(
       `Slots: ${this.inventoryState.usedSlots}/${this.inventoryState.capacitySlots}   Peso: ${this.inventoryState.totalWeight}`
     );
+  }
+
+  /**
+   * Minimal equipment panel (P): every slot with its item or a placeholder,
+   * and an unequip button on occupied slots. Deliberately not a final
+   * interface — it validates the equipment data flow, nothing else.
+   */
+  private createEquipmentPanel(): void {
+    const width = GameConstants.equipment.panelWidth;
+    const height = GameConstants.equipment.panelHeight;
+    const x = this.scale.width - GameConstants.inventory.panelWidth - 24 - width - 16;
+    const background = this.add
+      .rectangle(
+        0,
+        0,
+        width,
+        height,
+        Phaser.Display.Color.HexStringToColor(GameConstants.colors.surface).color,
+        0.95
+      )
+      .setOrigin(0, 0)
+      .setStrokeStyle(
+        1,
+        Phaser.Display.Color.HexStringToColor(GameConstants.colors.surfaceBorder).color,
+        1
+      );
+    const title = this.add.text(16, 12, "Equipamiento", {
+      color: GameConstants.colors.textPrimary,
+      fontFamily: GameConstants.fonts.ui,
+      fontSize: "18px",
+      fontStyle: "bold"
+    });
+    const hint = this.add
+      .text(width - 16, 16, "[P] cerrar", {
+        color: GameConstants.colors.textMuted,
+        fontFamily: GameConstants.fonts.ui,
+        fontSize: "12px"
+      })
+      .setOrigin(1, 0);
+
+    this.equipmentContent = this.add.container(0, 0);
+    this.equipmentPanel = this.add.container(x, 24, [
+      background,
+      title,
+      hint,
+      this.equipmentContent
+    ]);
+    this.equipmentPanel.setDepth(GameConstants.depth.modal);
+    this.equipmentPanel.setVisible(false);
+  }
+
+  private setEquipmentOpen(open: boolean): void {
+    this.equipmentOpen = open;
+    this.equipmentPanel?.setVisible(open);
+
+    if (open) {
+      this.renderEquipmentContents();
+    }
+  }
+
+  private renderEquipmentContents(): void {
+    if (!this.equipmentContent) {
+      return;
+    }
+
+    this.equipmentContent.removeAll(true);
+
+    const rowHeight = GameConstants.equipment.panelRowHeight;
+    const startY = 48;
+    const width = GameConstants.equipment.panelWidth;
+
+    this.equipmentState.slots.forEach((slotView, rowIndex) => {
+      const rowY = startY + rowIndex * rowHeight;
+      const label = this.add.text(16, rowY, EquipmentSlotLabels[slotView.slot] ?? slotView.slot, {
+        color: GameConstants.colors.textMuted,
+        fontFamily: GameConstants.fonts.ui,
+        fontSize: "13px"
+      });
+      const itemName = this.add.text(140, rowY, slotView.itemName ?? "—", {
+        color: slotView.itemName
+          ? GameConstants.colors.textPrimary
+          : GameConstants.colors.surfaceBorder,
+        fontFamily: GameConstants.fonts.ui,
+        fontSize: "13px"
+      });
+
+      this.equipmentContent?.add([label, itemName]);
+
+      if (slotView.itemId) {
+        const unequipButton = this.add
+          .text(width - 16, rowY, "Quitar", {
+            color: GameConstants.colors.accent,
+            fontFamily: GameConstants.fonts.ui,
+            fontSize: "13px",
+            fontStyle: "bold"
+          })
+          .setOrigin(1, 0)
+          .setInteractive({ useHandCursor: true });
+
+        unequipButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
+          gameEvents.emit("equipment:unequip-requested", { slot: slotView.slot });
+        });
+        this.equipmentContent?.add(unequipButton);
+      }
+    });
+  }
+
+  /**
+   * Minimal crafting panel: recipes of the open station, ingredient status,
+   * and a craft button per recipe. Deliberately not a final interface — it
+   * validates the crafting data flow, nothing else. The UI never touches the
+   * domain: it renders `crafting:station-opened` payloads and emits
+   * `crafting:craft-requested` back through the bus.
+   */
+  private createCraftingPanel(): void {
+    const width = GameConstants.crafting.panelWidth;
+    const height = GameConstants.crafting.panelHeight;
+    const background = this.add
+      .rectangle(
+        0,
+        0,
+        width,
+        height,
+        Phaser.Display.Color.HexStringToColor(GameConstants.colors.surface).color,
+        0.95
+      )
+      .setOrigin(0, 0)
+      .setStrokeStyle(
+        1,
+        Phaser.Display.Color.HexStringToColor(GameConstants.colors.surfaceBorder).color,
+        1
+      );
+
+    this.craftingTitle = this.add.text(16, 12, "", {
+      color: GameConstants.colors.textPrimary,
+      fontFamily: GameConstants.fonts.ui,
+      fontSize: "18px",
+      fontStyle: "bold"
+    });
+
+    const hint = this.add
+      .text(width - 16, 16, "[Esc] cerrar", {
+        color: GameConstants.colors.textMuted,
+        fontFamily: GameConstants.fonts.ui,
+        fontSize: "12px"
+      })
+      .setOrigin(1, 0);
+
+    this.craftingContent = this.add.container(0, 0);
+    this.craftingPanel = this.add.container(24, 24, [
+      background,
+      this.craftingTitle,
+      hint,
+      this.craftingContent
+    ]);
+    this.craftingPanel.setDepth(GameConstants.depth.modal);
+    this.craftingPanel.setVisible(false);
+  }
+
+  private closeCraftingPanel(): void {
+    this.craftingState = undefined;
+    this.craftingPanel?.setVisible(false);
+  }
+
+  private renderCraftingContents(): void {
+    if (!this.craftingContent || !this.craftingTitle || !this.craftingState) {
+      return;
+    }
+
+    this.craftingTitle.setText(this.craftingState.stationName);
+    this.craftingContent.removeAll(true);
+
+    const rowHeight = GameConstants.crafting.panelRowHeight;
+    const startY = 52;
+
+    this.craftingState.recipes.forEach((recipe, rowIndex) => {
+      const rowY = startY + rowIndex * rowHeight;
+      const name = this.add.text(16, rowY, recipe.recipeName, {
+        color: GameConstants.colors.textPrimary,
+        fontFamily: GameConstants.fonts.ui,
+        fontSize: "15px",
+        fontStyle: "bold"
+      });
+      const ingredientSummary = recipe.ingredients
+        .map(
+          (ingredient) => `${ingredient.itemName} ${ingredient.available}/${ingredient.required}`
+        )
+        .join("  ·  ");
+      const ingredients = this.add.text(16, rowY + 20, ingredientSummary, {
+        color: recipe.canCraft ? GameConstants.colors.textMuted : GameConstants.colors.danger,
+        fontFamily: GameConstants.fonts.ui,
+        fontSize: "13px"
+      });
+      const button = this.createCraftButton(rowY, recipe.recipeId, recipe.canCraft);
+
+      this.craftingContent?.add([name, ingredients, ...button]);
+    });
+  }
+
+  /** The craft button of one recipe row; inert (dimmed) when uncraftable. */
+  private createCraftButton(
+    rowY: number,
+    recipeId: string,
+    canCraft: boolean
+  ): Phaser.GameObjects.GameObject[] {
+    const width = GameConstants.crafting.panelWidth;
+    const buttonBackground = this.add
+      .rectangle(
+        width - 16,
+        rowY + 14,
+        92,
+        30,
+        Phaser.Display.Color.HexStringToColor(
+          canCraft ? GameConstants.colors.accent : GameConstants.colors.surfaceBorder
+        ).color,
+        1
+      )
+      .setOrigin(1, 0.5);
+    const buttonLabel = this.add
+      .text(width - 62, rowY + 14, "Fabricar", {
+        color: canCraft ? GameConstants.colors.accentText : GameConstants.colors.textMuted,
+        fontFamily: GameConstants.fonts.ui,
+        fontSize: "14px",
+        fontStyle: "bold"
+      })
+      .setOrigin(0.5, 0.5);
+
+    if (canCraft) {
+      buttonBackground.setInteractive({ useHandCursor: true });
+      buttonBackground.on(Phaser.Input.Events.POINTER_DOWN, () => {
+        if (this.craftingState) {
+          gameEvents.emit("crafting:craft-requested", {
+            recipeId,
+            stationKind: this.craftingState.stationKind
+          });
+        }
+      });
+    }
+
+    return [buttonBackground, buttonLabel];
   }
 
   /**

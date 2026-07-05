@@ -10,7 +10,9 @@ export const ItemCategories = {
   Resource: "resource",
   Tool: "tool",
   Consumable: "consumable",
-  Equipment: "equipment"
+  Equipment: "equipment",
+  /** Narrative-only objects: no equip slot, no crafting use. Evidence, not loot. */
+  Curio: "curio"
 } as const;
 
 export type ItemCategory = (typeof ItemCategories)[keyof typeof ItemCategories];

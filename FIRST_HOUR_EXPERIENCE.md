@@ -1,7 +1,11 @@
 # FIRST HOUR EXPERIENCE
 
-**Project Aether · Documento de Game Design · Versión 1.0**
+**Project Aether · Documento de Game Design · Versión 2.0**
 **Documento subordinado a: PROJECT_PILLARS.md**
+
+---
+
+> **Nota de revisión (v2.0):** el jugador ya no encuentra ninguna herramienta funcional en la costa. Toda herramienta que usa nace de sus propias manos — nunca se hereda, nunca se entrega, nunca se encuentra ya lista. Este cambio reescribe los Momentos 2, 3 y 5, la curva emocional y las memorias objetivo. Ver `PROJECT_PILLARS.md` (Pilar 2 y Regla Inquebrantable 13) para el principio rector detrás de esta revisión.
 
 ---
 
@@ -46,7 +50,7 @@ Antes de diseñar, entendemos la referencia. No para copiarla — para extraer s
 
 Reglas de diseño. Toda decisión de implementación se mide contra ellas.
 
-1. **La necesidad precede a la lección.** Nunca se enseña un sistema antes de que el jugador sienta la necesidad que ese sistema resuelve. Primero el inventario se llena, después existe el banco. Primero hay hambre, después existe la cocina.
+1. **La necesidad precede a la lección.** Nunca se enseña un sistema antes de que el jugador sienta la necesidad que ese sistema resuelve. Primero el inventario se llena, después existe el banco. Primero hay hambre, después existe la cocina. Primero hace falta cortar algo, después existe el hacha — y esa hacha la fabrica el jugador, no la encuentra.
 2. **El mundo señala; la interfaz calla.** Toda dirección se comunica con composición espacial (luz, humo, caminos, siluetas, sonido). La UI de la primera hora es mínima y aparece solo cuando su sistema ya fue tocado.
 3. **Cero lectura obligatoria.** Ningún bloque de texto detiene el juego. Jamás. (Regla Inquebrantable 1.)
 4. **La mano invisible.** El jugador está siendo guiado en todo momento — y no debe notarlo nunca. Si el jugador percibe el tutorial, el tutorial falló. La herramienta es el embudo espacial: pocas opciones al inicio, que se abren gradualmente.
@@ -54,6 +58,7 @@ Reglas de diseño. Toda decisión de implementación se mide contra ellas.
 6. **Una pregunta por escena.** Cada segmento de la primera hora planta exactamente una pregunta sin responder. Ni cero (esterilidad) ni tres (ruido).
 7. **El peligro se anuncia antes de morder.** El primer riesgo real debe poder _leerse_ antes de sufrirse (Pilar 11: riesgo opaco es ruido, no tensión).
 8. **Nada de números en la cara.** Sin niveles flotantes, sin barras de experiencia protagonistas, sin "+10 madera" en el centro de la pantalla. El feedback es diegético siempre que sea posible (Pilar 8).
+9. **Ninguna herramienta se hereda.** Todo objeto que el jugador use para actuar sobre el mundo —hacha, pico, arma— debe haber nacido de un acto suyo. Encontrar una herramienta ya funcional es un atajo que le roba al jugador la primera prueba de su propia competencia.
 
 ---
 
@@ -65,6 +70,8 @@ La primera hora es una composición en ocho movimientos:
 Desconcierto → Calma → Curiosidad → Pertenencia → Competencia → Orgullo → Asombro → Determinación
    (0-1')      (1-5')    (5-12')      (12-25')      (25-35')     (35-40')   (40-50')    (50-60')
 ```
+
+La franja de **Curiosidad (5'-12')** contiene ahora un matiz propio que no debe confundirse con la **Competencia** posterior (25'-35'): es una **autosuficiencia** cruda y solitaria — el jugador resuelve un problema con lo que encuentra tirado, sin ayuda ni infraestructura. La Competencia del asentamiento es otra cosa: aprender un oficio _con_ otros, en un lugar construido para eso. Ambas usan las manos; solo la segunda usa una comunidad.
 
 La emoción final no es felicidad ni satisfacción: es **determinación con una pizca de vértigo**. El jugador termina la hora _en camino hacia algo_, no habiendo completado algo.
 
@@ -113,32 +120,36 @@ En el camino, tres o cuatro cosas rompen la monotonía de la arena, espaciadas p
 - Un objeto pequeño medio enterrado que brilla apenas con la luz. Acercarse y tocarlo enseña la interacción básica. Lo que sea ese objeto, no se explica. Se guarda.
 - En una roca, **marcas talladas** — rayas contadas, como las de alguien que llevaba la cuenta de días. No se comentan. No se traducen.
 
+Mezclada con la arena y la vegetación baja, sin ningún destaque visual especial, hay **madera de deriva y piedras sueltas** — la misma Madera y la misma Piedra que el jugador va a usar toda la partida, aquí en su forma más humilde: tiradas en el suelo, sin árbol ni veta que cortar. Se recogen con las manos. No hacen falta herramientas para lo que el suelo ya ofrece suelto.
+
 El audio hace la mitad del trabajo: solo mar y viento. La ausencia de música es deliberada y se sostiene — la música debe _ganarse su entrada_ más tarde (Pilar 14).
 
 - **Emoción buscada:** calma con inquietud de fondo. Soledad que no es abandono. Y la primera pregunta genuina: _"¿quién más llegó aquí?"_
-- **Mecánica introducida:** interacción con objetos (un solo botón, aprendido por curiosidad, no por instrucción).
-- **Principio aplicado:** una pregunta por escena — la fogata y las marcas plantan la pregunta de los que llegaron antes, que es también la semilla del misterio central (los Recién Llegados). Cada aprendizaje deja un objeto: la primera interacción produce el primer objeto del inventario.
-- **Error evitado:** la playa-corredor con premios cada tres metros (ansiedad de recolección) y la playa vacía (aburrimiento). También: explicar las marcas. Las marcas no se explican. Quizá nunca.
+- **Mecánica introducida:** interacción con objetos (un solo botón, aprendido por curiosidad, no por instrucción) y la primera recolección — sin herramienta, sin inventario visible todavía.
+- **Principio aplicado:** una pregunta por escena — la fogata y las marcas plantan la pregunta de los que llegaron antes, que es también la semilla del misterio central (los Recién Llegados). Cada aprendizaje deja un objeto: la primera interacción produce el primer objeto del inventario. Principio 9: nada de lo recolectado aquí requirió una herramienta que el jugador todavía no tiene.
+- **Error evitado:** la playa-corredor con premios cada tres metros (ansiedad de recolección) y la playa vacía (aburrimiento). También: explicar las marcas. Las marcas no se explican. Quizá nunca. También: convertir la madera de deriva y las piedras sueltas en una lista de materiales visible — se encuentran caminando, no se persiguen.
 
 ---
 
-### MOMENTO 3 — El campamento abandonado y la primera herramienta (5:00 – 9:00)
+### MOMENTO 3 — El campamento abandonado y la primera herramienta fabricada (5:00 – 9:00)
 
 _Responde a las preguntas 3 y 5: ¿Cuándo obtiene su primera herramienta? ¿Cómo aprende a recolectar?_
 
 **Lo que ocurre.**
-Donde la playa se encuentra con la vegetación, antes de llegar al humo, el jugador encuentra un pequeño campamento **abandonado**: un refugio precario, vencido por el tiempo. Aquí hay una herramienta gastada — un hacha de mano, simple, usada — clavada donde su dueño la dejó.
+Donde la playa se encuentra con la vegetación, antes de llegar al humo, el jugador encuentra un pequeño campamento **abandonado**: un refugio precario, vencido por el tiempo. No hay ninguna herramienta útil esperándolo ahí. Lo único que encuentra es una **cabeza de hacha oxidada, sin mango** — el metal picado, la forma todavía reconocible. Nadie la dejó para él. Simplemente quedó.
 
-El jugador la toma. Es su primera herramienta y **no se la dio nadie**: la encontró, la heredó de un desconocido.
+No se puede equipar. No se puede usar. Es evidencia, no botín: alguien, antes que él, también necesitó cortar algo en este mismo lugar. ¿Lo logró? ¿Se le rompió el mango y siguió camino con las manos vacías, como él? ¿Fue lo último que hizo antes de irse — o de no volver? El juego no responde. Nunca lo hará.
 
-Justo después del campamento, la vegetación hace el resto: ramas caídas evidentemente recolectables, arbustos con frutos. El diseño visual de lo recolectable debe ser legible sin resaltados artificiales — la forma, el color y la animación sutil (frutos que se mecen) hacen de señal. El jugador prueba el hacha en lo obvio. Funciona. Recolecta.
+Con la madera de deriva y la piedra suelta que ya juntó en la playa (Momento 2), el jugador puede ahora **fabricar su propia Hacha Rudimentaria** — sin forja, sin estación, sin nadie que se la enseñe. Es un gesto simple: atar una piedra afilada a un palo. No representa artesanía. Representa la diferencia entre morir de hambre y no morir de hambre.
+
+El juego no lo felicita. No hay fanfarria. El hacha aparece en su mano y ya. Justo después, la vegetación hace el resto: ahora sí, con la herramienta en la mano, los árboles y arbustos completos se vuelven cortables — no solo la madera suelta del suelo. El jugador prueba el hacha en lo obvio. Funciona. Recolecta.
 
 El hambre aparece aquí como sensación suave (señal visual/sonora diegética en el personaje, no una barra roja gritando): los frutos se pueden comer. Necesidad → solución. Nadie explicó nada.
 
-- **Emoción buscada:** curiosidad recompensada, y una capa fina de melancolía: _esta herramienta fue de alguien._ (¿El de la fogata? ¿El de las marcas? No se responde.)
-- **Mecánica introducida:** recolección, inventario (se abre solo ahora que tiene sentido), alimentación básica.
-- **Principio aplicado:** la necesidad precede a la lección (hambre antes que comida); el orgullo se fabrica — y antes de fabricar, se hereda. El campamento abandonado es narrativa ambiental que además es dispensador de tutorial: la forma más pura de "enseñar sin que se note".
-- **Error evitado:** el NPC que entrega la herramienta con instrucciones ("¡Toma este hacha, forastero! Presiona E para talar"). También evitamos el mundo-supermercado: los recolectables existen en densidad natural, no en filas.
+- **Emoción buscada:** dos capas distintas, una después de la otra. Primero, frente a la cabeza de hacha: melancolía y curiosidad — _esta herramienta fue de alguien, y no le alcanzó, o no la necesitó más_. Después, al fabricar la propia: **autosuficiencia** — alivio de competencia individual, no orgullo de artesano todavía. Esa distinción importa: no es la misma emoción que el arma de la Forja (Momento 5).
+- **Mecánica introducida:** recolección sin herramienta (ya empezada en M2), crafteo sin estación (Tier 0 — Crafteo de Supervivencia), equipamiento de la primera herramienta, recolección con herramienta (árboles y arbustos completos), inventario (se abre solo ahora que tiene sentido), alimentación básica.
+- **Principio aplicado:** la necesidad precede a la lección (hambre antes que comida; falta de herramienta antes que herramienta); Principio 9 en su expresión fundacional — ninguna herramienta se hereda, esta la fabrica el propio jugador; el campamento abandonado sigue siendo narrativa ambiental pura (Pilar 7) que ya no dispensa tutorial — dispensa únicamente pregunta.
+- **Error evitado:** el NPC que entrega la herramienta con instrucciones ("¡Toma este hacha, forastero! Presiona E para talar"). El objeto encontrado que además es útil (mezclar loot y narrativa — las separamos a propósito). El crafteo temprano con ceremonia de estación: fabricar el hacha rudimentaria no requiere edificios ni maestros. También evitamos el mundo-supermercado: los recolectables existen en densidad natural, no en filas.
 
 ---
 
@@ -153,7 +164,9 @@ Nadie corre a recibir al jugador. El asentamiento estaba haciendo su vida y la s
 
 La estructura espacial del asentamiento es la clave de todo lo que sigue: **es una plaza de oficios dispuesta en herradura** — cocina, forja, carpintería, curtiduría, y al fondo el edificio del banco y el pequeño mercado. Todo visible desde la entrada. Todo despierta la pregunta "¿qué se hace ahí?". El orden de visita lo decide el jugador.
 
-- **Emoción buscada:** alivio y pertenencia provisional. "Acá se puede estar." Y curiosidad multiplicada: cada puesto de trabajo es una promesa.
+El jugador que llega no es un mendigo: ya sobrevivió un rato largo solo, con sus propias manos y una herramienta que él mismo fabricó. Lo que el asentamiento ofrece no es supervivencia — es pertenecer a algo, y herramientas mejores que las que él pudo improvisar en la playa.
+
+- **Emoción buscada:** alivio y pertenencia provisional, ahora desde una posición de competencia ya ganada, no de necesidad desesperada. "Acá se puede estar" — y además, "acá se puede mejorar lo que ya sé hacer". Y curiosidad multiplicada: cada puesto de trabajo es una promesa.
 - **Mecánica introducida:** ninguna. Este momento es puramente emocional. Introducir mecánicas aquí sería desperdiciar la llegada.
 - **Principio aplicado:** la música como recompensa (Pilar 14); el mundo existía antes (Pilar 1): el asentamiento no espera al jugador. La herradura es la mano invisible: guía sin pasillo.
 - **Error evitado:** la lluvia de ventanas al entrar a la "zona de tutorial"; el comité de bienvenida que convierte al jugador en especial (Pilar 2); el mapa con nueve iconos de misión.
@@ -171,13 +184,13 @@ El jugador se acerca a los puestos en el orden que quiera. En cada uno, el apren
 2. **Necesitar o querer.** Algo hace falta: al herrero le falta material, la olla está esperando ingredientes que el jugador ya tiene de la playa. La situación — nunca un diálogo largo — invita a participar.
 3. **Hacer.** El jugador ejecuta la acción con sus propios recursos y **se queda con el resultado**.
 
-La primera arma sale de este patrón, alrededor del minuto 15–20: **el jugador la fabrica con sus manos en la forja**, con material que él recolectó. Es tosca, es simple, y es _suya_. Este es el momento de mayor carga emocional del asentamiento y debe tratarse como tal: el sonido del metal, el objeto apareciendo en la mano, el personaje sopesándolo. Sin fanfarria de interfaz. La fanfarria es el objeto mismo.
+La primera arma sale de este patrón, alrededor del minuto 15–20: **el jugador la fabrica con sus manos en la forja**, con material que él recolectó. Es tosca, es simple, y es _suya_. No es la primera vez que fabrica algo con sus propias manos —eso ya pasó en la playa, con el hacha rudimentaria— pero sí es la primera vez que lo hace con herramientas de otros, en un lugar construido para eso. Este es el momento de mayor carga emocional del asentamiento y debe tratarse como tal: el sonido del metal, el objeto apareciendo en la mano, el personaje sopesándolo. Sin fanfarria de interfaz. La fanfarria es el objeto mismo.
 
 No es obligatorio pasar por todos los oficios. El asentamiento enseña lo que el jugador quiera aprender; el resto queda ahí, esperando, como razón para volver.
 
-- **Emoción buscada:** competencia creciente ("sé hacer cosas") que culmina en orgullo ("esto lo hice yo").
+- **Emoción buscada:** competencia creciente ("sé hacer cosas, ahora mejor y con otros") que culmina en un orgullo distinto al de la playa: no es "sobreviví solo", es "aprendí un oficio".
 - **Mecánica introducida:** crafteo en sus variantes (cocina, herrería, carpintería, peletería), equipamiento.
-- **Principio aplicado:** las manos enseñan, no el texto; el primer loop completo (recolectar → fabricar → equipar) es la primera promesa del juego, heredada del análisis de Albion; el orgullo se fabrica, no se entrega.
+- **Principio aplicado:** las manos enseñan, no el texto; el primer loop completo (recolectar → fabricar → equipar) es la primera promesa del juego, heredada del análisis de Albion; el orgullo se fabrica, no se entrega — por segunda vez en la misma hora, pero ahora con una diferencia: esta vez hubo un maestro, una estación, una comunidad detrás.
 - **Error evitado:** la secuencia obligatoria de estaciones (el jugador elige el orden y puede saltarse oficios); el arma regalada (un arma entregada no vale nada; una fabricada vale todo); el checklist visible de "tutorial completado 4/9".
 
 ---
@@ -282,10 +295,10 @@ _Responde a la pregunta 13._
 Si entrevistamos al jugador esa noche, debería recordar — sin ayuda — estos cinco momentos:
 
 1. **Despertar en la arena con el mar vacío detrás.** (La imagen fundacional del juego.)
-2. **La primera arma que fabricó con sus manos.** (El orgullo.)
+2. **El hacha que fabricó con sus propias manos, sin ayuda de nadie, con lo que encontró tirado.** (La autosuficiencia.) — y, más tarde, la primera arma fabricada ya con otros, en la Forja: el mismo orgullo, una segunda vez, distinto.
 3. **La vista desde el mirador y la silueta en el horizonte.** (La promesa.)
 4. **El susto del camino.** (El respeto.)
-5. **Una pregunta.** Cualquiera de las plantadas: las marcas en la roca, el campamento de otro, la anomalía en el paisaje. (La semilla.)
+5. **Una pregunta.** Cualquiera de las plantadas: las marcas en la roca, la cabeza de hacha oxidada del campamento, la anomalía en el paisaje. (La semilla.)
 
 Si un playtester recuerda espontáneamente al menos tres de las cinco, la primera hora funciona. Si recuerda "el tutorial de crafteo", fracasó — porque lo recordó como tutorial.
 
@@ -293,21 +306,21 @@ Si un playtester recuerda espontáneamente al menos tres de las cinco, la primer
 
 ## 6. Tabla de trazabilidad — las 13 preguntas
 
-| #   | Pregunta                                  | Respuesta                                                                  | Momento |
-| --- | ----------------------------------------- | -------------------------------------------------------------------------- | ------- |
-| 1   | ¿Qué ve en los primeros 30 segundos?      | Arena, mar vacío detrás, acantilados, humo lejano. Cero UI, cero texto     | M1      |
-| 2   | ¿Qué siente en los primeros 5 minutos?    | Calma con inquietud; soledad que no es abandono; "¿quién más llegó aquí?"  | M2      |
-| 3   | ¿Cuándo obtiene su primera herramienta?   | Min ~6-8: la hereda de un campamento abandonado. Nadie se la da            | M3      |
-| 4   | ¿Cuándo consigue su primera arma?         | Min ~15-20: la fabrica él mismo en la forja, con material propio           | M5      |
-| 5   | ¿Cómo aprende a recolectar?               | Herramienta encontrada + recursos legibles + hambre. Sin instrucciones     | M3      |
-| 6   | ¿Cómo aprende a fabricar?                 | Patrón ver → necesitar → hacer, en puestos de oficio a libre elección      | M5      |
-| 7   | ¿Cómo descubre el banco?                  | El inventario se satura por calibración deliberada; la necesidad lo revela | M6      |
-| 8   | ¿Cómo descubre el mercado?                | Tiene excedente para vender — y encuentra deseos que no puede pagar        | M6      |
-| 9   | ¿Cuándo comprende que el mundo es enorme? | Min ~35-40: el mirador. Vista diseñada, silueta de la capital, anomalía    | M7      |
-| 10  | ¿Cuándo aparece el primer peligro real?   | Min ~40-50: en el camino al pueblo, anunciado por señales ambientales      | M8      |
-| 11  | ¿Cuándo abandona la costa?                | Min ~50, por deseo propio (diseñado). Umbral espacial, no de interfaz      | M9      |
-| 12  | ¿Cuándo llega al primer pueblo?           | Min ~55-60. La hora termina en la entrada: apertura, no conclusión         | M10     |
-| 13  | ¿Qué debe recordar horas después?         | Cinco memorias: la arena, el arma, el mirador, el susto, una pregunta      | §5      |
+| #   | Pregunta                                  | Respuesta                                                                                                       | Momento |
+| --- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------- |
+| 1   | ¿Qué ve en los primeros 30 segundos?      | Arena, mar vacío detrás, acantilados, humo lejano. Cero UI, cero texto                                          | M1      |
+| 2   | ¿Qué siente en los primeros 5 minutos?    | Calma con inquietud; soledad que no es abandono; "¿quién más llegó aquí?"                                       | M2      |
+| 3   | ¿Cuándo obtiene su primera herramienta?   | Min ~6-8: la fabrica él mismo, sin estación, con madera y piedra sueltas de la playa. Nadie se la da            | M3      |
+| 4   | ¿Cuándo consigue su primera arma?         | Min ~15-20: la fabrica en la forja — segunda vez que fabrica, ahora con otros                                   | M5      |
+| 5   | ¿Cómo aprende a recolectar?               | Sin herramienta primero (madera y piedra sueltas); con herramienta después, ya con el hacha rudimentaria propia | M2/M3   |
+| 6   | ¿Cómo aprende a fabricar?                 | Patrón ver → necesitar → hacer, en puestos de oficio a libre elección                                           | M5      |
+| 7   | ¿Cómo descubre el banco?                  | El inventario se satura por calibración deliberada; la necesidad lo revela                                      | M6      |
+| 8   | ¿Cómo descubre el mercado?                | Tiene excedente para vender — y encuentra deseos que no puede pagar                                             | M6      |
+| 9   | ¿Cuándo comprende que el mundo es enorme? | Min ~35-40: el mirador. Vista diseñada, silueta de la capital, anomalía                                         | M7      |
+| 10  | ¿Cuándo aparece el primer peligro real?   | Min ~40-50: en el camino al pueblo, anunciado por señales ambientales                                           | M8      |
+| 11  | ¿Cuándo abandona la costa?                | Min ~50, por deseo propio (diseñado). Umbral espacial, no de interfaz                                           | M9      |
+| 12  | ¿Cuándo llega al primer pueblo?           | Min ~55-60. La hora termina en la entrada: apertura, no conclusión                                              | M10     |
+| 13  | ¿Qué debe recordar horas después?         | Cinco memorias: la arena, el hacha que fabricó solo, el mirador, el susto, una pregunta                         | §5      |
 
 ---
 
@@ -325,6 +338,7 @@ La lista negra. Si cualquiera de estos aparece en una build, es un bug de diseñ
 8. Cualquier mención de la palabra "tutorial" en cualquier lugar visible.
 9. Música continua. La música de la primera hora entra dos veces (llegada al asentamiento, mirador) y se gana ambas.
 10. Responder cualquiera de las preguntas plantadas (las marcas, el campamento, la anomalía). Se plantan aquí. Se cosechan en meses.
+11. Cualquier herramienta o arma inicial entregada al jugador o encontrada ya funcional, sin que él la haya fabricado.
 
 ---
 
@@ -336,6 +350,7 @@ La primera hora se prueba con jugadores sin información previa, y se mide con e
 - **Test de la mano invisible:** al terminar, preguntar "¿hubo tutorial?". La respuesta que buscamos es alguna variante de _"no… aprendí solo"_.
 - **Test del mirador:** ¿sube al mirador sin señalización? ¿Menciona espontáneamente la silueta del horizonte al describir la sesión?
 - **Test de memoria (§5):** horas después, ¿recuerda ≥3 de las 5 memorias objetivo?
+- **Test de autosuficiencia:** al preguntarle cómo consiguió su primera hacha, ¿responde que la hizo él mismo, sin ayuda? Si dice "la encontré", el diseño falló.
 - **Test de la pregunta:** ¿formula al menos una pregunta sobre el mundo sin que se le pregunte? ("¿qué eran las marcas de la roca?" = victoria total.)
 - **Test de continuidad:** al llegar al pueblo, ¿quiere seguir jugando? Se mide de la única forma honesta: dejando el control en sus manos y viendo qué hace.
 

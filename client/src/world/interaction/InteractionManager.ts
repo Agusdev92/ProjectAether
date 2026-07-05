@@ -1,3 +1,4 @@
+import type { EquipmentQuery } from "@world/equipment/EquipmentTypes";
 import type { InteractableRegistry } from "@world/interaction/InteractableRegistry";
 import type {
   Interactable,
@@ -5,6 +6,7 @@ import type {
   InteractionOutcome,
   InteractionVerb
 } from "@world/interaction/InteractionTypes";
+import type { RequirementContext } from "@world/requirements/RequirementTypes";
 
 /**
  * InteractionManager executes interactions: it resolves the focused
@@ -28,17 +30,31 @@ export class InteractionManager {
   /** The interactable the player could act on right now, if any. */
   public findFocused(
     position: Readonly<{ x: number; y: number }>,
+    nowSeconds: number,
+    requirementContext: RequirementContext
+  ): Interactable | undefined {
+    return this.registry.findFocused(position, nowSeconds, requirementContext);
+  }
+
+  /**
+   * Nearest interactable ignoring requirements — developer diagnostics only,
+   * passed straight through to the registry.
+   */
+  public findNearestIgnoringRequirements(
+    position: Readonly<{ x: number; y: number }>,
     nowSeconds: number
   ): Interactable | undefined {
-    return this.registry.findFocused(position, nowSeconds);
+    return this.registry.findNearestIgnoringRequirements(position, nowSeconds);
   }
 
   /** Performs the focused interaction. Undefined when nothing is in range. */
   public interact(
     position: Readonly<{ x: number; y: number }>,
-    nowSeconds: number
+    nowSeconds: number,
+    equipment: EquipmentQuery,
+    requirementContext: RequirementContext
   ): InteractionOutcome | undefined {
-    const interactable = this.registry.findFocused(position, nowSeconds);
+    const interactable = this.registry.findFocused(position, nowSeconds, requirementContext);
 
     if (!interactable) {
       return undefined;
@@ -50,7 +66,7 @@ export class InteractionManager {
       throw new Error(`No handler registered for interaction verb: ${interactable.verb}`);
     }
 
-    const result = handler(interactable, { nowSeconds });
+    const result = handler(interactable, { nowSeconds, equipment });
 
     if (result.success && result.exhaustForSeconds !== undefined) {
       this.registry.exhaust(interactable.id, nowSeconds, result.exhaustForSeconds);

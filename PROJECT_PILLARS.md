@@ -60,16 +60,19 @@ El "elegido" es la mentira estructural de los MMORPG: miles de jugadores no pued
 - Ningún NPC trata al jugador como especial por defecto.
 - No existen misiones del tipo "solo tú puedes hacerlo".
 - La reputación, si existe, se construye por acciones y es local, no cósmica.
+- Ninguna herramienta, arma o pieza de equipo inicial es heredada, regalada o encontrada ya funcional: todo lo que el jugador usa para actuar sobre el mundo nace de un acto suyo.
 
 **Ejemplos prácticos.**
 
 - Un herrero le habla al jugador como a cualquier forastero: con distancia, quizá con desconfianza.
 - Si el jugador realiza algo notable, la respuesta del mundo es proporcional y local: el pueblo lo recuerda; el continente no.
+- En la costa inicial, el jugador no encuentra ningún hacha ni arma lista para usar. Lo único que un campamento abandonado le ofrece es una cabeza de hacha oxidada, sin mango — evidencia de que alguien más lo intentó antes, no una herramienta. Su primera hacha la fabrica él mismo.
 
 **Qué debemos evitar.**
 
 - Diálogos que halaguen al jugador sin motivo ("¡el guerrero legendario!").
 - Recompensas narrativas no ganadas.
+- Objetos de utilidad real —herramientas, armas, equipo— entregados o encontrados ya funcionales. Cualquier objeto que el jugador use para actuar sobre el mundo debe originarse en una acción suya, nunca en un hallazgo pasivo.
 
 **Qué debemos fomentar.**
 
@@ -498,6 +501,7 @@ Estas reglas no admiten excepciones. No se negocian por deadlines, por métricas
 10. **Nunca bloquear gameplay detrás de conocimiento de lore.** El lore es recompensa. Jamás peaje.
 11. **Nunca listar los secretos en las notas de actualización.** Lo no anunciado es tradición del estudio.
 12. **Nunca diseñar una región sin su historia interna primero.** La función de gameplay llega después de la causa histórica.
+13. **Nunca entregar ni permitir encontrar una herramienta o arma inicial ya funcional.** Toda herramienta que el jugador use debe haber sido fabricada por él mismo — nunca heredada, nunca hallada, nunca regalada.
 
 ---
 

@@ -1,9 +1,5 @@
 import { CraftingValidator } from "@world/crafting/CraftingValidator";
-import type {
-  CraftingContext,
-  CraftingResult,
-  RecipeOffer
-} from "@world/crafting/CraftingTypes";
+import type { CraftingContext, CraftingResult, RecipeOffer } from "@world/crafting/CraftingTypes";
 import type { RecipeRegistry } from "@world/crafting/RecipeRegistry";
 import type { InventoryManager } from "@world/inventory/InventoryManager";
 import type { ItemRegistry } from "@world/inventory/ItemRegistry";

@@ -60,7 +60,27 @@ export type GameEventMap = {
       readonly icon: string;
       readonly iconColor: string;
       readonly rarity: string;
+      readonly equipable: boolean;
     }>;
+  };
+  "equipment:changed": {
+    readonly slots: ReadonlyArray<{
+      readonly slot: string;
+      readonly itemId: string | null;
+      readonly itemName: string | null;
+      readonly icon: string | null;
+      readonly iconColor: string | null;
+    }>;
+  };
+  "equipment:equip-requested": {
+    readonly itemId: string;
+  };
+  "equipment:unequip-requested": {
+    readonly slot: string;
+  };
+  "equipment:performed": {
+    readonly success: boolean;
+    readonly message: string;
   };
   "inventory:item-added": {
     readonly itemId: string;

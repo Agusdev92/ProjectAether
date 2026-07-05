@@ -4,6 +4,7 @@ import { EnvironmentEffects } from "@game/atmosphere/EnvironmentEffects";
 import { LookoutCamera } from "@game/atmosphere/LookoutCamera";
 import { ActionKey } from "@game/input/ActionKey";
 import { KeyboardMovement } from "@game/input/KeyboardMovement";
+import { GroundClutterRenderer } from "@game/rendering/GroundClutterRenderer";
 import { InteractionIndicator } from "@game/rendering/InteractionIndicator";
 import { IsometricTilemapRenderer } from "@game/rendering/IsometricTilemapRenderer";
 import { PoiRenderer } from "@game/rendering/PoiRenderer";
@@ -14,7 +15,8 @@ import { gameEvents } from "@services/events/GameEvents";
 import { GameConstants } from "@shared/config/GameConstants";
 import { AmbientEffectTypes } from "@world/atmosphere/AtmosphereTypes";
 import type { AmbientEffectType } from "@world/atmosphere/AtmosphereTypes";
-import { worldToTile } from "@world/coordinates/WorldCoordinates";
+import { tileToWorld, worldToTile } from "@world/coordinates/WorldCoordinates";
+import { CraftingStationKinds } from "@world/crafting/CraftingTypes";
 import { WorldSession } from "@world/WorldSession";
 
 /**
@@ -37,6 +39,7 @@ export class WorldScene extends Phaser.Scene {
   private interactionIndicator?: InteractionIndicator;
   private focusedInteractableId: string | null = null;
   private openStationKind: string | null = null;
+  private survivalCraftKey?: ActionKey;
   private readonly unsubscribeHandlers: Array<() => void> = [];
 
   public constructor() {
@@ -61,21 +64,38 @@ export class WorldScene extends Phaser.Scene {
     this.movement = new KeyboardMovement(this);
     this.tilemapRenderer = new IsometricTilemapRenderer(this, this.worldSession.tilemap);
     new PoiRenderer(this, this.tilemapRenderer).renderAll(this.worldSession.pois.all);
+    new GroundClutterRenderer(this, this.tilemapRenderer).renderAll(
+      this.worldSession.zone.interactables.flatMap((definition) =>
+        definition.anchorTile
+          ? [{ kind: definition.kind, position: tileToWorld(definition.anchorTile) }]
+          : []
+      )
+    );
     this.createAtmosphere();
     this.interactionKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.E);
+    this.survivalCraftKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.C);
     this.interactionIndicator = new InteractionIndicator(this, this.tilemapRenderer);
     this.playerMarker = this.createPlayerMarker();
     this.configureCamera();
     this.updateWorldPresentation();
     this.scene.launch(SceneKeys.UI);
     // The UI scene subscribes on its create; give it the initial state then.
-    this.time.delayedCall(0, () => this.emitInventorySnapshot());
+    this.time.delayedCall(0, () => {
+      this.emitInventorySnapshot();
+      this.emitEquipmentSnapshot();
+    });
     this.registerCraftingHandlers();
   }
 
-  /** Crafting requests arrive from the UI through the bus; the scene adapts. */
+  /** UI requests arrive through the bus; the scene adapts, the domain decides. */
   private registerCraftingHandlers(): void {
     this.unsubscribeHandlers.push(
+      gameEvents.on("equipment:equip-requested", (payload) => {
+        this.applyEquipmentChange(this.worldSession.equip(payload.itemId));
+      }),
+      gameEvents.on("equipment:unequip-requested", (payload) => {
+        this.applyEquipmentChange(this.worldSession.unequip(payload.slot));
+      }),
       gameEvents.on("crafting:craft-requested", (payload) => {
         const result = this.worldSession.craft(payload.recipeId, payload.stationKind);
 
@@ -113,8 +133,30 @@ export class WorldScene extends Phaser.Scene {
     this.updateWorldPresentation();
     this.updateAtmospherePresentation(deltaSeconds);
     this.updateInteractionPresentation(deltaSeconds);
+    this.updateSurvivalCraftingPresentation();
     this.emitFrameState();
     this.emitPoiDiscoveries();
+  }
+
+  /**
+   * Tier 0 survival crafting has no station to interact with — it toggles
+   * with a dedicated key, always available, anywhere. Opening it just asks
+   * WorldSession for the "survival" offer, exactly like any other station.
+   */
+  private updateSurvivalCraftingPresentation(): void {
+    if (!this.survivalCraftKey?.justPressed()) {
+      return;
+    }
+
+    if (this.openStationKind === CraftingStationKinds.Survival) {
+      this.openStationKind = null;
+      gameEvents.emit("crafting:station-closed");
+
+      return;
+    }
+
+    this.openStationKind = CraftingStationKinds.Survival;
+    this.emitStationOffer(CraftingStationKinds.Survival);
   }
 
   /** Syncs the focus indicator and runs the interaction on demand. */
@@ -212,7 +254,31 @@ export class WorldScene extends Phaser.Scene {
     this.emitInventorySnapshot();
   }
 
-  /** Publishes the current inventory snapshot for HUD consumers. */
+  /** Announces the outcome of an equipment change and refreshes both HUDs. */
+  private applyEquipmentChange(result: Readonly<{ success: boolean; message: string }>): void {
+    gameEvents.emit("equipment:performed", {
+      success: result.success,
+      message: result.message
+    });
+
+    if (result.success) {
+      this.emitEquipmentSnapshot();
+      this.emitInventorySnapshot();
+    }
+  }
+
+  /** Publishes the current loadout for HUD consumers. */
+  private emitEquipmentSnapshot(): void {
+    gameEvents.emit("equipment:changed", {
+      slots: this.worldSession.equipment.snapshot.slots
+    });
+  }
+
+  /**
+   * Publishes the current inventory snapshot for HUD consumers. The
+   * `equipable` flag is presentation enrichment resolved here, at the
+   * integration point: the inventory domain never learns about equipment.
+   */
   private emitInventorySnapshot(): void {
     const snapshot = this.worldSession.inventory.snapshot;
 
@@ -220,7 +286,10 @@ export class WorldScene extends Phaser.Scene {
       usedSlots: snapshot.usedSlots,
       capacitySlots: snapshot.capacitySlots,
       totalWeight: snapshot.totalWeight,
-      items: snapshot.items
+      items: snapshot.items.map((item) => ({
+        ...item,
+        equipable: this.worldSession.equipment.isEquipable(item.itemId)
+      }))
     });
   }
 

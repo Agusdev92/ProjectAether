@@ -69,12 +69,15 @@ export const TileFeatureDefinitions: Readonly<Record<TileFeatureType, TileFeatur
     id: TileFeatureTypes.Tree,
     blocksMovement: true
   },
+  // Gatherable props do not block: playtests showed blocking rock/bush fields
+  // form closed pockets that trap the player. Trees keep blocking as forest
+  // walls; loose props are stepped around, like resource nodes in the genre.
   [TileFeatureTypes.Rock]: {
     id: TileFeatureTypes.Rock,
-    blocksMovement: true
+    blocksMovement: false
   },
   [TileFeatureTypes.Bush]: {
     id: TileFeatureTypes.Bush,
-    blocksMovement: true
+    blocksMovement: false
   }
 };

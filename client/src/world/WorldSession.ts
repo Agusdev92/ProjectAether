@@ -5,18 +5,32 @@ import { AtmosphereManager } from "@world/atmosphere/AtmosphereManager";
 import type { CollisionProvider } from "@world/collision/CollisionProvider";
 import { CraftingManager } from "@world/crafting/CraftingManager";
 import { createDefaultRecipeRegistry } from "@world/crafting/RecipeCatalog";
-import type { CraftingResult, RecipeOffer } from "@world/crafting/CraftingTypes";
+import { UbiquitousCraftingStations } from "@world/crafting/CraftingTypes";
+import type { CraftingResult, CraftingStation, RecipeOffer } from "@world/crafting/CraftingTypes";
+import { EquipmentManager } from "@world/equipment/EquipmentManager";
+import { createDefaultEquipmentRegistry } from "@world/equipment/EquipmentCatalog";
+import { EquipmentSlotOrder } from "@world/equipment/EquipmentTypes";
+import type { EquipmentChangeResult } from "@world/equipment/EquipmentTypes";
+import { tileToWorld } from "@world/coordinates/WorldCoordinates";
+import type { WorldCoordinate } from "@world/coordinates/WorldCoordinates";
 import { InteractableRegistry } from "@world/interaction/InteractableRegistry";
 import { InteractionManager } from "@world/interaction/InteractionManager";
 import { createDefaultInteractionHandlers } from "@world/interaction/InteractionHandlers";
 import { TileFeatureInteractableSource } from "@world/interaction/TileFeatureInteractableSource";
-import type { Interactable, InteractionOutcome } from "@world/interaction/InteractionTypes";
+import type {
+  Interactable,
+  InteractionOutcome,
+  ZoneInteractableDefinition
+} from "@world/interaction/InteractionTypes";
 import { InventoryManager } from "@world/inventory/InventoryManager";
 import { createDefaultItemRegistry } from "@world/inventory/ItemCatalog";
 import type { ItemGrant } from "@world/inventory/InventoryTypes";
 import { PoiRegistry } from "@world/poi/PoiRegistry";
 import { PoiTypes } from "@world/poi/PoiTypes";
 import type { PoiDefinition } from "@world/poi/PoiTypes";
+import { createDefaultRequirementRegistry } from "@world/requirements/RequirementEvaluators";
+import type { RequirementRegistry } from "@world/requirements/RequirementRegistry";
+import type { RequirementContext, RequirementSnapshot } from "@world/requirements/RequirementTypes";
 import { WorldTilemap } from "@world/tilemap/WorldTilemap";
 import { FirstCoastZone } from "@world/zones/FirstCoastZone";
 import type { ZoneDefinition } from "@world/zones/ZoneDefinition";
@@ -42,8 +56,10 @@ export class WorldSession {
   public readonly interactions: InteractionManager;
   public readonly inventory: InventoryManager;
   public readonly crafting: CraftingManager;
+  public readonly equipment: EquipmentManager;
 
   private readonly collision: CollisionProvider;
+  private readonly requirements: RequirementRegistry;
   private elapsedSeconds = 0;
 
   public constructor(zone: ZoneDefinition = FirstCoastZone) {
@@ -52,6 +68,7 @@ export class WorldSession {
     this.pois = new PoiRegistry(zone.pois);
     this.atmosphere = new AtmosphereManager(zone.atmosphere);
     this.player = new Player("local-player", this.tilemap.spawnWorldPosition);
+    this.requirements = createDefaultRequirementRegistry();
     this.interactions = this.createInteractions(zone);
 
     // One item registry shared by inventory and crafting: a single source of
@@ -60,6 +77,7 @@ export class WorldSession {
 
     this.inventory = new InventoryManager(itemRegistry, GameConstants.inventory.capacitySlots);
     this.crafting = new CraftingManager(createDefaultRecipeRegistry(), itemRegistry);
+    this.equipment = new EquipmentManager(createDefaultEquipmentRegistry(), itemRegistry);
     this.collision = {
       isBlockedAtWorld: (worldX, worldY) =>
         this.tilemap.isBlockedAtWorld(worldX, worldY) || this.pois.isBlockedAtWorld(worldX, worldY)
@@ -75,7 +93,29 @@ export class WorldSession {
 
   /** The interactable the player could act on right now, if any. */
   public getFocusedInteractable(): Interactable | undefined {
-    return this.interactions.findFocused(this.player.position, this.elapsedSeconds);
+    return this.interactions.findFocused(
+      this.player.position,
+      this.elapsedSeconds,
+      this.buildRequirementContext()
+    );
+  }
+
+  /**
+   * Diagnostic only: what the world would require of the nearest object,
+   * ignoring whether the player actually meets it, and whether it does.
+   * Never surfaced to the player — for developer tooling exclusively.
+   */
+  public getFocusedRequirementSnapshot(): RequirementSnapshot | undefined {
+    const nearest = this.interactions.findNearestIgnoringRequirements(
+      this.player.position,
+      this.elapsedSeconds
+    );
+
+    if (!nearest?.requirements || nearest.requirements.length === 0) {
+      return undefined;
+    }
+
+    return this.requirements.snapshot(nearest.requirements, this.buildRequirementContext());
   }
 
   /**
@@ -84,7 +124,12 @@ export class WorldSession {
    * is the only bridge. Undefined when nothing is in range.
    */
   public interact(): InteractionReport | undefined {
-    const outcome = this.interactions.interact(this.player.position, this.elapsedSeconds);
+    const outcome = this.interactions.interact(
+      this.player.position,
+      this.elapsedSeconds,
+      this.equipment,
+      this.buildRequirementContext()
+    );
 
     if (!outcome) {
       return undefined;
@@ -150,11 +195,47 @@ export class WorldSession {
     );
   }
 
-  /** The station interactable of the given kind the player stands at, if any. */
-  public getActiveStation(stationKind: string): Interactable | undefined {
+  /**
+   * Equips an item from the bag. Equipment and inventory never know each
+   * other beyond the swap the manager performs here under session control.
+   */
+  public equip(itemId: string): EquipmentChangeResult {
+    return this.equipment.equip(itemId, undefined, this.inventory, {
+      nowSeconds: this.elapsedSeconds
+    });
+  }
+
+  /** Unequips a slot back into the bag; cancelled when the bag is full. */
+  public unequip(slotId: string): EquipmentChangeResult {
+    const slot = EquipmentSlotOrder.find((candidate) => candidate === slotId);
+
+    if (!slot) {
+      return { success: false, message: "Slot desconocido." };
+    }
+
+    return this.equipment.unequip(slot, this.inventory);
+  }
+
+  /**
+   * The station of the given kind currently usable, if any. Ubiquitous
+   * stations (Tier 0 survival crafting) are always active, anywhere, with no
+   * proximity check at all — CraftingManager never learns this distinction
+   * exists; it only ever receives a { kind, name } station.
+   */
+  public getActiveStation(stationKind: string): CraftingStation | undefined {
+    const ubiquitousName = UbiquitousCraftingStations.get(stationKind);
+
+    if (ubiquitousName) {
+      return { kind: stationKind, name: ubiquitousName };
+    }
+
     const focused = this.getFocusedInteractable();
 
-    return focused && focused.kind === stationKind ? focused : undefined;
+    if (!focused || focused.kind !== stationKind) {
+      return undefined;
+    }
+
+    return { kind: focused.kind, name: focused.name };
   }
 
   /**
@@ -167,14 +248,48 @@ export class WorldSession {
 
   /**
    * Builds the interaction stack of the zone: tile features arrive through a
-   * lazy source; zone-declared interactables anchor to their POI centers.
+   * lazy source; zone-declared interactables anchor either to a POI's center
+   * (places with narrative weight — camp, forge) or directly to a tile
+   * (loose ground clutter that isn't a point of interest on its own).
    */
   private createInteractions(zone: ZoneDefinition): InteractionManager {
-    const registry = new InteractableRegistry();
+    const registry = new InteractableRegistry(this.requirements);
 
     registry.addSource(new TileFeatureInteractableSource(this.tilemap));
 
     for (const definition of zone.interactables) {
+      registry.register({
+        id: definition.id,
+        kind: definition.kind,
+        name: definition.name,
+        verb: definition.verb,
+        position: this.resolveInteractablePosition(definition),
+        radiusInTiles: definition.radiusInTiles,
+        requirements: definition.requirements
+      });
+    }
+
+    return new InteractionManager(registry, createDefaultInteractionHandlers());
+  }
+
+  /**
+   * Translates equipment-domain facts into the neutral shape the requirement
+   * system understands. This is the only place that knows both vocabularies —
+   * world/requirements never imports EquipmentManager or EquipmentQuery.
+   */
+  private buildRequirementContext(): RequirementContext {
+    return {
+      nowSeconds: this.elapsedSeconds,
+      equippedTool: this.equipment.getEquippedToolInfo()
+    };
+  }
+
+  private resolveInteractablePosition(definition: ZoneInteractableDefinition): WorldCoordinate {
+    if (definition.anchorTile) {
+      return tileToWorld(definition.anchorTile);
+    }
+
+    if (definition.poiId) {
       const poi = this.pois.all.find((candidate) => candidate.id === definition.poiId);
 
       if (!poi) {
@@ -183,16 +298,9 @@ export class WorldSession {
         );
       }
 
-      registry.register({
-        id: definition.id,
-        kind: definition.kind,
-        name: definition.name,
-        verb: definition.verb,
-        position: PoiRegistry.footprintCenterWorld(poi),
-        radiusInTiles: definition.radiusInTiles
-      });
+      return PoiRegistry.footprintCenterWorld(poi);
     }
 
-    return new InteractionManager(registry, createDefaultInteractionHandlers());
+    throw new Error(`Zone interactable ${definition.id} needs either poiId or anchorTile.`);
   }
 }

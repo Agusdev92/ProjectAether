@@ -15,6 +15,11 @@ import type { ItemGrant } from "@world/inventory/InventoryTypes";
  * never changes.
  */
 export const CraftingStationKinds = {
+  /**
+   * Survival crafting (Tier 0): no station, no infrastructure — the recipe
+   * only needs materials and hands. See UbiquitousCraftingStations below.
+   */
+  Survival: "survival",
   Forge: "forge",
   Carpentry: "carpentry",
   Cooking: "cooking",
@@ -22,8 +27,20 @@ export const CraftingStationKinds = {
   Alchemy: "alchemy"
 } as const;
 
-export type CraftingStationKind =
-  (typeof CraftingStationKinds)[keyof typeof CraftingStationKinds];
+export type CraftingStationKind = (typeof CraftingStationKinds)[keyof typeof CraftingStationKinds];
+
+/**
+ * Station kinds that are always available, everywhere, without standing at
+ * any interactable. WorldSession consults this map to resolve "is a station
+ * of this kind active right now" — CraftingManager and CraftingValidator stay
+ * completely unaware that some stations require no physical presence at all;
+ * they only ever see a { kind, name } station in their context, exactly like
+ * any other. Adding a future ubiquitous station is a new map entry, never a
+ * pipeline change.
+ */
+export const UbiquitousCraftingStations: ReadonlyMap<string, string> = new Map([
+  [CraftingStationKinds.Survival, "Manos"]
+]);
 
 /** The station the player is currently using, resolved from the world. */
 export type CraftingStation = Readonly<{

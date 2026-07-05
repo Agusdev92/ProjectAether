@@ -185,8 +185,10 @@ export const FirstCoastZone: ZoneDefinition = {
       { id: "coast-music", channel: AmbientSoundChannels.Music, baseVolume: 0.5 }
     ]
   },
-  // Zone interactables anchor to POIs; trees and rocks come from the tile
-  // feature source, not from this list.
+  // Zone interactables anchor either to a POI (camp, forge: places with
+  // narrative weight) or directly to a tile (loose ground clutter — not a
+  // point of interest on its own). Trees and rocks come from the tile feature
+  // source, not from this list.
   interactables: [
     {
       id: "interact-coast-camp",
@@ -203,6 +205,78 @@ export const FirstCoastZone: ZoneDefinition = {
       verb: InteractionVerbs.UseStation,
       poiId: "coast-forge",
       radiusInTiles: 2.2
+    },
+    // Loose driftwood and stones scattered along the beach, between the
+    // spawn and the abandoned camp — hand-gatherable, no tool required,
+    // found while walking (FIRST_HOUR_EXPERIENCE Momento 2).
+    {
+      id: "interact-coast-driftwood-1",
+      kind: InteractableKinds.DriftwoodPile,
+      name: "Madera de deriva",
+      verb: InteractionVerbs.Gather,
+      anchorTile: { x: 10, y: 37 },
+      radiusInTiles: 1.5
+    },
+    {
+      id: "interact-coast-driftwood-2",
+      kind: InteractableKinds.DriftwoodPile,
+      name: "Madera de deriva",
+      verb: InteractionVerbs.Gather,
+      anchorTile: { x: 13, y: 39 },
+      radiusInTiles: 1.5
+    },
+    {
+      id: "interact-coast-driftwood-3",
+      kind: InteractableKinds.DriftwoodPile,
+      name: "Madera de deriva",
+      verb: InteractionVerbs.Gather,
+      anchorTile: { x: 11, y: 40 },
+      radiusInTiles: 1.5
+    },
+    {
+      id: "interact-coast-loose-stones-1",
+      kind: InteractableKinds.LooseStones,
+      name: "Piedras sueltas",
+      verb: InteractionVerbs.Gather,
+      anchorTile: { x: 14, y: 37 },
+      radiusInTiles: 1.5
+    },
+    {
+      id: "interact-coast-loose-stones-2",
+      kind: InteractableKinds.LooseStones,
+      name: "Piedras sueltas",
+      verb: InteractionVerbs.Gather,
+      anchorTile: { x: 16, y: 38 },
+      radiusInTiles: 1.5
+    },
+    // Sprint 10 gated Rock behind Pickaxe (Tier >= 0). Mining a Pickaxe at the
+    // Forge costs 3 Piedra, and the Rudimentary Axe costs 1 more — with Rock
+    // now closed until a Pickaxe exists, loose stone is the only source
+    // before that point. Two piles (2 Piedra) soft-locked the bootstrap;
+    // five (5 Piedra) covers axe + pick with a small margin.
+    {
+      id: "interact-coast-loose-stones-3",
+      kind: InteractableKinds.LooseStones,
+      name: "Piedras sueltas",
+      verb: InteractionVerbs.Gather,
+      anchorTile: { x: 12, y: 37 },
+      radiusInTiles: 1.5
+    },
+    {
+      id: "interact-coast-loose-stones-4",
+      kind: InteractableKinds.LooseStones,
+      name: "Piedras sueltas",
+      verb: InteractionVerbs.Gather,
+      anchorTile: { x: 15, y: 39 },
+      radiusInTiles: 1.5
+    },
+    {
+      id: "interact-coast-loose-stones-5",
+      kind: InteractableKinds.LooseStones,
+      name: "Piedras sueltas",
+      verb: InteractionVerbs.Gather,
+      anchorTile: { x: 10, y: 40 },
+      radiusInTiles: 1.5
     }
   ]
 };
@@ -312,15 +386,34 @@ function isTree(coordinate: TileCoordinate): boolean {
   return (westernGrove || easternGrove) && hashedChance(coordinate, 3);
 }
 
-/** Rock outcrops at the cliff base and around the lookout hill. */
+/**
+ * Rock outcrops at the cliff base and around the lookout hill. Rocks never
+ * spawn near a path: playtests (twice) showed blocking rock fields form
+ * walkable pockets that trap the player. The spur corridor stays guaranteed.
+ */
 function isRock(coordinate: TileCoordinate): boolean {
+  if (hasPathNearby(coordinate, 2)) {
+    return false;
+  }
+
   const cliffBase = coordinate.x >= 5 && coordinate.x <= 7;
   const lookoutHill =
     coordinate.x >= 7 && coordinate.x <= 15 && coordinate.y >= 3 && coordinate.y <= 8;
 
-  // Hill density stays below 1/3: playtest showed 1/2 could trap the player
-  // between blocking rocks when wandering off the spur path.
-  return (cliffBase && hashedChance(coordinate, 3)) || (lookoutHill && hashedChance(coordinate, 3));
+  return (cliffBase && hashedChance(coordinate, 3)) || (lookoutHill && hashedChance(coordinate, 4));
+}
+
+/** True when any tile within the given radius is a path tile. */
+function hasPathNearby(coordinate: TileCoordinate, radius: number): boolean {
+  for (let dy = -radius; dy <= radius; dy += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      if (isPath({ x: coordinate.x + dx, y: coordinate.y + dy })) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 /** Scattered bushes on the vegetation fringe just above the beach. */

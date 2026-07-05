@@ -10,7 +10,25 @@ export { InteractableRegistry } from "@world/interaction/InteractableRegistry";
 export { InteractionManager } from "@world/interaction/InteractionManager";
 export { createDefaultInteractionHandlers } from "@world/interaction/InteractionHandlers";
 export { TileFeatureInteractableSource } from "@world/interaction/TileFeatureInteractableSource";
+export { CraftingManager } from "@world/crafting/CraftingManager";
+export { CraftingValidator } from "@world/crafting/CraftingValidator";
+export { CraftingStationKinds, UbiquitousCraftingStations } from "@world/crafting/CraftingTypes";
+export { RecipeRegistry } from "@world/crafting/RecipeRegistry";
+export { createDefaultRecipeRegistry } from "@world/crafting/RecipeCatalog";
+export { EquipmentLoadout } from "@world/equipment/EquipmentLoadout";
+export { EquipmentManager } from "@world/equipment/EquipmentManager";
+export { EquipmentRegistry } from "@world/equipment/EquipmentRegistry";
+export { EquipmentValidator } from "@world/equipment/EquipmentValidator";
+export { createDefaultEquipmentRegistry } from "@world/equipment/EquipmentCatalog";
+export {
+  EquipmentKinds,
+  EquipmentSlotOrder,
+  EquipmentSlots
+} from "@world/equipment/EquipmentTypes";
 export { InteractableKinds, InteractionVerbs } from "@world/interaction/InteractionTypes";
+export { RequirementRegistry } from "@world/requirements/RequirementRegistry";
+export { createDefaultRequirementRegistry } from "@world/requirements/RequirementEvaluators";
+export { RequirementTypes, ToolTypes } from "@world/requirements/RequirementTypes";
 export { Inventory } from "@world/inventory/Inventory";
 export { InventoryManager } from "@world/inventory/InventoryManager";
 export { ItemRegistry } from "@world/inventory/ItemRegistry";
@@ -56,6 +74,41 @@ export type {
   InteractionYield,
   ZoneInteractableDefinition
 } from "@world/interaction/InteractionTypes";
+export type {
+  CraftingContext,
+  CraftingResult,
+  CraftingStation,
+  CraftingStationKind,
+  CraftingValidation,
+  RecipeDefinition,
+  RecipeIngredient,
+  RecipeIngredientStatus,
+  RecipeOffer,
+  RecipeOutput
+} from "@world/crafting/CraftingTypes";
+export type {
+  EquipmentChangeResult,
+  EquipmentContext,
+  EquipmentDefinition,
+  EquipmentKind,
+  EquipmentQuery,
+  EquipmentSlot,
+  EquipmentSlotView,
+  EquipmentSnapshot,
+  ToolInfo
+} from "@world/equipment/EquipmentTypes";
+export type {
+  RequirementCheckView,
+  RequirementContext,
+  RequirementEvaluator,
+  RequirementParamValue,
+  RequirementQuery,
+  RequirementResult,
+  RequirementSnapshot,
+  RequirementType,
+  ToolType,
+  WorldRequirement
+} from "@world/requirements/RequirementTypes";
 export type {
   InventoryAddResult,
   InventoryItemView,

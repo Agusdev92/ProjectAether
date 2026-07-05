@@ -3,16 +3,39 @@ import { tileToWorld, worldToTile } from "@world/coordinates/WorldCoordinates";
 import type { WorldCoordinate } from "@world/coordinates/WorldCoordinates";
 import { InteractableKinds, InteractionVerbs } from "@world/interaction/InteractionTypes";
 import type { Interactable, InteractableSource } from "@world/interaction/InteractionTypes";
+import { RequirementTypes, ToolTypes } from "@world/requirements/RequirementTypes";
+import type { WorldRequirement } from "@world/requirements/RequirementTypes";
 import { TileFeatureTypes } from "@world/tilemap/TileTypes";
 import type { TileFeatureType } from "@world/tilemap/TileTypes";
 import type { WorldTilemap } from "@world/tilemap/WorldTilemap";
 
-/** Which tile features are interactable and what they present as. */
+/** Requires any tool of the given type, tier 0 or higher — data, not code. */
+function toolRequirement(toolType: string): readonly WorldRequirement[] {
+  return [
+    { type: RequirementTypes.ToolType, params: { toolType } },
+    { type: RequirementTypes.ToolTier, params: { minTier: 0 } }
+  ];
+}
+
+/** Which tile features are interactable, what they present as, and what they require. */
 const FeatureKinds: Partial<
-  Readonly<Record<TileFeatureType, Readonly<{ kind: string; name: string }>>>
+  Readonly<
+    Record<
+      TileFeatureType,
+      Readonly<{ kind: string; name: string; requirements: readonly WorldRequirement[] }>
+    >
+  >
 > = {
-  [TileFeatureTypes.Tree]: { kind: InteractableKinds.Tree, name: "Árbol" },
-  [TileFeatureTypes.Rock]: { kind: InteractableKinds.Rock, name: "Roca" }
+  [TileFeatureTypes.Tree]: {
+    kind: InteractableKinds.Tree,
+    name: "Árbol",
+    requirements: toolRequirement(ToolTypes.Axe)
+  },
+  [TileFeatureTypes.Rock]: {
+    kind: InteractableKinds.Rock,
+    name: "Roca",
+    requirements: toolRequirement(ToolTypes.Pickaxe)
+  }
 };
 
 /**
@@ -49,7 +72,8 @@ export class TileFeatureInteractableSource implements InteractableSource {
           name: featureKind.name,
           verb: InteractionVerbs.Gather,
           position: tileToWorld({ x, y }),
-          radiusInTiles: GameConstants.interaction.focusRadiusInTiles
+          radiusInTiles: GameConstants.interaction.focusRadiusInTiles,
+          requirements: featureKind.requirements
         });
       }
     }

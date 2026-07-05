@@ -74,6 +74,7 @@ ProjectAether/
 │     │  │  ├─ ActionKey.ts
 │     │  │  └─ KeyboardMovement.ts
 │     │  ├─ rendering/
+│     │  │  ├─ GroundClutterRenderer.ts
 │     │  │  ├─ InteractionIndicator.ts
 │     │  │  ├─ IsometricTilemapRenderer.ts
 │     │  │  ├─ PoiRenderer.ts
@@ -108,6 +109,19 @@ ProjectAether/
 │     │  │  └─ AtmosphereTypes.ts
 │     │  ├─ collision/
 │     │  │  └─ CollisionProvider.ts
+│     │  ├─ crafting/
+│     │  │  ├─ CraftingManager.ts
+│     │  │  ├─ CraftingTypes.ts
+│     │  │  ├─ CraftingValidator.ts
+│     │  │  ├─ RecipeCatalog.ts
+│     │  │  └─ RecipeRegistry.ts
+│     │  ├─ equipment/
+│     │  │  ├─ EquipmentCatalog.ts
+│     │  │  ├─ EquipmentLoadout.ts
+│     │  │  ├─ EquipmentManager.ts
+│     │  │  ├─ EquipmentRegistry.ts
+│     │  │  ├─ EquipmentTypes.ts
+│     │  │  └─ EquipmentValidator.ts
 │     │  ├─ coordinates/
 │     │  │  └─ WorldCoordinates.ts
 │     │  ├─ interaction/
@@ -125,6 +139,10 @@ ProjectAether/
 │     │  ├─ poi/
 │     │  │  ├─ PoiRegistry.ts
 │     │  │  └─ PoiTypes.ts
+│     │  ├─ requirements/
+│     │  │  ├─ RequirementEvaluators.ts
+│     │  │  ├─ RequirementRegistry.ts
+│     │  │  └─ RequirementTypes.ts
 │     │  ├─ tilemap/
 │     │  │  ├─ TerrainResolver.ts
 │     │  │  ├─ TileTypes.ts
@@ -242,8 +260,40 @@ ProjectAether/
   stacks y overflow reportado; sirve para bolsa, banco, cofres y comercio.
 - `client/src/world/inventory/InventoryManager.ts`: fachada del jugador:
   grants, consumo y snapshot con peso.
+- `client/src/world/crafting/CraftingTypes.ts`: contratos de crafting: recetas
+  como datos, estaciones, contexto, validacion, resultado y ofertas.
+- `client/src/world/crafting/RecipeRegistry.ts`: catalogo de recetas indexado
+  por id y por estacion.
+- `client/src/world/crafting/RecipeCatalog.ts`: contenido actual (Hacha, Pico
+  y Espada Simple en la Forja).
+- `client/src/world/crafting/CraftingValidator.ts`: reglas de validacion
+  separadas del pipeline; los requisitos futuros se agregan aqui.
+- `client/src/world/crafting/CraftingManager.ts`: pipeline generico
+  validar -> consumir -> otorgar, identico para toda receta.
+- `client/src/world/equipment/EquipmentTypes.ts`: contratos de equipamiento:
+  slots canonicos, definiciones como datos, snapshot y `EquipmentQuery`.
+- `client/src/world/equipment/EquipmentRegistry.ts`: catalogo de equipables;
+  un item es equipable si y solo si tiene fila aqui.
+- `client/src/world/equipment/EquipmentCatalog.ts`: contenido actual (Hacha y
+  Pico Simple -> herramienta; Espada Simple -> mano principal).
+- `client/src/world/equipment/EquipmentLoadout.ts`: contenedor puro de slots.
+- `client/src/world/equipment/EquipmentValidator.ts`: reglas de equipado;
+  requisitos futuros (skills, combate) entran aqui.
+- `client/src/world/equipment/EquipmentManager.ts`: maquina generica de slots
+  con intercambio atomico contra el inventario; nada se pierde jamas.
 - `client/src/game/rendering/InteractionIndicator.ts`: indicador flotante
   discreto sobre el objeto enfocado; solo aparece de cerca.
+- `client/src/game/rendering/GroundClutterRenderer.ts`: placeholders de
+  recoleccion sin herramienta (madera de deriva, piedras sueltas), anclados a
+  tiles en vez de POIs.
+- `client/src/world/requirements/RequirementTypes.ts`: contratos del sistema
+  de requisitos: `WorldRequirement` como dato, contexto neutral, resultado,
+  evaluador por tipo y `RequirementQuery`.
+- `client/src/world/requirements/RequirementRegistry.ts`: catalogo de
+  evaluadores por tipo con agregacion AND; nunca conoce que es una
+  "herramienta" o una "facción", solo despacha por string.
+- `client/src/world/requirements/RequirementEvaluators.ts`: contenido actual
+  (ToolType, ToolTier) y la fabrica de registro por defecto.
 - `client/src/world/coordinates/WorldCoordinates.ts`: conversiones entre mundo,
   tile y proyeccion isometrica.
 - `client/src/world/collision/CollisionProvider.ts`: contrato de colisiones
@@ -308,6 +358,77 @@ ProjectAether/
   catalogo y `WorldSession.interact()` es el unico puente que deposita.
 - La UI de inventario consume snapshots inmutables via `inventory:changed`;
   nunca lee el dominio directamente.
+- Las recetas son datos, nunca clases: el `CraftingManager` ejecuta un unico
+  pipeline (validar -> consumir -> otorgar) y no conoce recetas ni estaciones.
+  Mecanicas nuevas (calidad, criticos, durabilidad) entraran como etapas o
+  validadores nuevos, jamas como codigo por receta.
+- Las estaciones de crafting son un dato de la receta (`stationKind`) alineado
+  con los kinds de interactuables: la Forja del mundo ES la forja de las
+  recetas. Estaciones nuevas no modifican el manager.
+- El crafting exige presencia fisica: la oferta se abre al interactuar con la
+  estacion y se cierra honestamente al alejarse; fabricar lejos falla.
+- La UI de crafting pide fabricar via `crafting:craft-requested` por el bus;
+  `WorldScene` adapta y el dominio decide.
+- El equipamiento posee su propio catalogo de datos por itemId: el catalogo de
+  items y el inventario nunca conocen slots. Es el mismo patron de interaccion
+  (tablas por kind) y crafting (recetas): los sistemas se conocen por ids,
+  nunca entre si, y `WorldSession` integra.
+- Equipar/desequipar es atomico con rollback: el jugador no puede perder un
+  item por un fallo intermedio (inventario lleno cancela la operacion).
+- `EquipmentQuery` deja preparado el proximo paso: requisitos de herramienta
+  en interacciones (arbol -> hacha, roca -> pico) sin acoplar sistemas.
+- El flag `equipable` del snapshot de inventario se resuelve en la escena (el
+  punto de integracion), no en el dominio del inventario.
+- Props recolectables (rocas, arbustos) no bloquean movimiento: dos playtests
+  demostraron que los campos bloqueantes forman bolsillos que atrapan al
+  jugador. Los arboles siguen bloqueando como muros de bosque, y las rocas no
+  aparecen a menos de 2 tiles de un camino.
+- Crafting de Supervivencia (Tier 0): las estaciones "ubicuas" son un dato
+  (`UbiquitousCraftingStations`, mapa estacion -> nombre) que `WorldSession`
+  consulta antes de caer al comportamiento de proximidad existente. El
+  `CraftingManager` y el `CraftingValidator` no distinguen una estacion ubicua
+  de una fisica: ambas llegan como el mismo `{ kind, name }`. Cero ifs
+  especiales en el pipeline.
+- `ZoneInteractableDefinition` admite anclar un interactuable a un POI
+  (`poiId`, lugares con peso narrativo) o directo a un tile (`anchorTile`,
+  hallazgos sueltos que no ameritan ser un punto de interes ni disparar
+  `poi:discovered`). Exactamente uno de los dos se define por entrada.
+  `GroundClutterRenderer` presenta los anclados a tile con el mismo patron que
+  `PoiRenderer`.
+- La recoleccion sin herramienta (madera de deriva, piedras sueltas) usa las
+  mismas filas de `GatherTable` que arboles y rocas, con una sola diferencia
+  de dato: `respawnSeconds: Number.POSITIVE_INFINITY` (hallazgo unico, no
+  nodo renovable). Ninguna logica nueva; el gatherHandler es identico.
+- Objetos puramente narrativos (Cabeza de Hacha Oxidada) usan la categoria de
+  item `Curio`: sin fila en `EquipmentRegistry`, sin ingrediente en ninguna
+  receta. Es evidencia, no loot — la separacion entre narrativa ambiental y
+  utilidad mecanica es explicita en el tipo, no una convencion tacita.
+- `InteractionContext` ahora lleva `equipment: EquipmentQuery`; los handlers
+  que no lo necesitan lo ignoran sin costo. Es la preparacion explicita para
+  que el proximo sprint condicione la recoleccion a la herramienta equipada
+  sin tocar `InteractionManager` de nuevo.
+- Sistema de requisitos del mundo (`world/requirements/`): cualquier
+  interactuable puede exigir condiciones sin que `InteractionManager` cambie
+  nunca. `WorldRequirement` es un dato (`{ type, params }`);
+  `RequirementRegistry` mapea tipo -> `RequirementEvaluator` (una funcion por
+  tipo) con agregacion AND. El filtro ocurre dentro de
+  `InteractableRegistry.findFocused`, el mismo lugar donde ya se descartaba un
+  interactuable agotado: un objeto sin el requisito cumplido no compite por el
+  foco. Comportamiento completamente diegetico — sin boton "E", sin mensaje.
+- `InteractionManager` solo gano un parametro (`RequirementContext`) que
+  reenvia sin interpretar. Cero logica nueva, cero conocimiento de tipos de
+  requisito concretos.
+- `world/requirements/` no importa nada de `world/inventory` ni
+  `world/equipment`. `RequirementContext` es una bolsa de hechos neutrales
+  (`equippedTool: { toolType, tier } | undefined`); `WorldSession` traduce
+  entre equipamiento y requisitos, el unico lugar que conoce ambos.
+- `EquipmentDefinition` gano `toolType`/`tier` opcionales (solo equipables de
+  categoria Tool los usan); `EquipmentManager.getEquippedToolInfo()` resuelve
+  la herramienta equipada sin que el sistema de requisitos conozca el
+  catalogo de equipamiento.
+- `RequirementSnapshot` y `findNearestIgnoringRequirements` existen solo para
+  diagnostico de desarrollo — nunca se muestran al jugador. El mundo se
+  mantiene silencioso; el equipo puede seguir viendo por que algo no responde.
 - El tileset temporal esta renderizado con primitivas Phaser en
   `IsometricTilemapRenderer`. Esto permite iterar direccion visual sin fijar
   todavia un pipeline de arte definitivo.
@@ -349,15 +470,35 @@ Incluido:
   recolectables con respawn, campamento de busqueda unica (hacha) y forja
   como estacion aun no disponible. Notificaciones temporales en el HUD.
 - Inventario: items como datos con stacks, peso, categorias, rareza y
-  descripciones. Arbol -> Madera, Roca -> Piedra, Campamento -> Hacha
-  Gastada. Panel simple con tecla `I` (listado, cantidades, slots y peso).
+  descripciones. Arbol -> Madera, Roca -> Piedra, Campamento -> Cabeza de
+  Hacha Oxidada (evidencia, no herramienta). Panel simple con tecla `I`
+  (listado, cantidades, slots y peso).
+- Crafting: recetas como datos con pipeline generico. Crafteo de Supervivencia
+  (Tier 0, sin estacion, tecla `C`: Hacha Rudimentaria) y Crafteo de Oficio
+  (Tier 1, Forja: Hacha, Pico y Espada Simple). Panel minimo compartido con
+  estado de materiales y boton Fabricar. La oferta de estacion fisica se
+  cierra al alejarse; la de supervivencia no, por diseno.
+- Recoleccion inicial sin herramienta: madera de deriva y piedras sueltas en
+  la playa, hallazgos unicos que no respawnean — distintos de la tala y la
+  mineria tradicional (arboles y rocas, renovables).
+- Equipamiento: 9 slots (manos, herramienta, armadura, accesorios), catalogo
+  de equipables propio, intercambio atomico con el inventario, panel con
+  tecla `P` y boton Equipar en el inventario.
+- Sistema de requisitos del mundo: Arbol exige Hacha equipada (Tier >= 0),
+  Roca exige Pico equipado (Tier >= 0). Sin el requisito, la interaccion
+  simplemente no se ofrece (sin boton, sin mensaje). Hacha Rudimentaria
+  (Tier 0, sin estacion) y Hacha/Pico Simple (Tier 1, Forja) ya cumplen o no
+  cumplen segun la herramienta equipada.
 - Developer Overlay con FPS, coordenadas, mapa, POIs descubiertos, clima y
   estado de camara.
 
 No incluido en esta tarea:
 
 - Combate.
-- Crafting completo y economia.
+- Economia y comercio.
+- Habilidades y experiencia.
+- Reputacion.
+- Progresion de profesiones.
 - NPC.
 - IA.
 - Multijugador.

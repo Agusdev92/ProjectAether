@@ -31,15 +31,28 @@ const Items: readonly ItemDefinition[] = [
     iconColor: "#8e9494"
   },
   {
-    id: "worn-axe",
-    name: "Hacha Gastada",
-    description: "El filo está mellado por años de uso. Perteneció a alguien que llegó antes.",
+    id: "rusted-axe-head",
+    name: "Cabeza de Hacha Oxidada",
+    description:
+      "El metal está picado, pero la forma todavía se reconoce. Sin mango, no sirve para nada. Alguien, antes que vos, también necesitó cortar algo en este mismo lugar.",
+    category: ItemCategories.Curio,
+    rarity: ItemRarities.Common,
+    maxStack: 1,
+    weight: 3,
+    icon: "⚒",
+    iconColor: "#9c6b4a"
+  },
+  {
+    id: "rudimentary-axe",
+    name: "Hacha Rudimentaria",
+    description:
+      "Una piedra afilada, atada a un palo con lo que tenías a mano. No es bonita. Corta.",
     category: ItemCategories.Tool,
     rarity: ItemRarities.Common,
     maxStack: 1,
-    weight: 4,
+    weight: 3,
     icon: "⚒",
-    iconColor: "#6f7a84"
+    iconColor: "#6b5237"
   },
   {
     id: "simple-axe",

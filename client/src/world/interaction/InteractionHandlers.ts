@@ -29,6 +29,20 @@ const GatherTable: Readonly<
     itemId: "stone",
     message: "Piedra obtenida",
     respawnSeconds: 45
+  },
+  // Loose ground clutter: same items as trees/rocks, but a one-time find
+  // (Number.POSITIVE_INFINITY never respawns) instead of a renewable node.
+  // That is the whole difference between "recolección inicial" and "tala de
+  // árboles / minería tradicional" — no tool required either way today.
+  [InteractableKinds.DriftwoodPile]: {
+    itemId: "wood",
+    message: "Madera obtenida",
+    respawnSeconds: Number.POSITIVE_INFINITY
+  },
+  [InteractableKinds.LooseStones]: {
+    itemId: "stone",
+    message: "Piedra obtenida",
+    respawnSeconds: Number.POSITIVE_INFINITY
   }
 };
 
@@ -37,8 +51,8 @@ const SearchTable: Readonly<
   Record<string, Readonly<{ message: string; itemId: string; quantity: number }>>
 > = {
   [InteractableKinds.Camp]: {
-    message: "Hacha gastada encontrada",
-    itemId: "worn-axe",
+    message: "Cabeza de hacha oxidada encontrada",
+    itemId: "rusted-axe-head",
     quantity: 1
   }
 };
