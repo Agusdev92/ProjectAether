@@ -55,6 +55,9 @@ npm.cmd run dev
 ProjectAether/
 ├─ client/
 │  ├─ public/
+│  │  └─ audio/
+│  │     ├─ coast-sea.mp3
+│  │     └─ coast-wind.mp3
 │  └─ src/
 │     ├─ assets/
 │     │  ├─ AssetManifest.ts
@@ -70,6 +73,8 @@ ProjectAether/
 │     │  │  ├─ EnvironmentEffects.ts
 │     │  │  ├─ LookoutCamera.ts
 │     │  │  └─ WeatherPresenter.ts
+│     │  ├─ audio/
+│     │  │  └─ PhaserSoundPlayer.ts
 │     │  ├─ config.ts
 │     │  ├─ input/
 │     │  │  ├─ ActionKey.ts
@@ -115,7 +120,8 @@ ProjectAether/
 │     ├─ world/
 │     │  ├─ atmosphere/
 │     │  │  ├─ AtmosphereManager.ts
-│     │  │  └─ AtmosphereTypes.ts
+│     │  │  ├─ AtmosphereTypes.ts
+│     │  │  └─ SoundSpatializer.ts
 │     │  ├─ clock/
 │     │  │  ├─ WorldClock.ts
 │     │  │  └─ WorldClockTypes.ts
@@ -256,8 +262,9 @@ ProjectAether/
   efectos ambientales y canales de sonido por zona.
 - `client/src/world/atmosphere/AtmosphereManager.ts`: estado de atmosfera de la
   zona activa con simulacion determinista de viento y toggles por efecto.
-- `client/src/services/audio/SoundPlayer.ts`: puerto de audio inyectable;
-  `NullSoundPlayer` mientras no existan assets.
+- `client/src/services/audio/SoundPlayer.ts`: puerto de audio inyectable
+  (`hasAsset`/`playLoop`/`setVolume`/`stop`/`setMasterVolume`); `NullSoundPlayer`
+  como no-op y `PhaserSoundPlayer` (Sprint 17) como implementacion real.
 - `client/src/services/audio/AmbientSoundManager.ts`: canales de ambiente por
   zona (viento, mar, pajaros, insectos, lluvia, musica) sin dependencia de
   Phaser.
@@ -396,6 +403,15 @@ ProjectAether/
 - `client/src/game/atmosphere/WeatherPresenter.ts`: viñeta de tormenta sobre
   la camara del mundo (mismo patron que `PlayerVitalityPresenter`), con fade
   de varios segundos en vez de un cambio instantaneo.
+- `client/src/world/atmosphere/SoundSpatializer.ts`: `resolveChannelVolume`,
+  funcion pura que resuelve el volumen de un canal de sonido a partir de la
+  posicion del jugador — mismo patron que `resolveScheduledTile`/
+  `resolveWeatherForDay`: sin estado, sin Phaser. Sin `spatial` el canal es
+  una cama global (Viento, Pajaros); con `spatial` cae linealmente a cero en
+  `falloffRadiusInTiles` (Olas, Hojas).
+- `client/src/game/audio/PhaserSoundPlayer.ts`: el adaptador real de
+  `SoundPlayer` que Sprint 4 dejo anticipado — envuelve el Sound Manager de
+  Phaser; `AmbientSoundManager` nunca sabe que cambio.
 - `eslint.config.js`: reglas de lint para TypeScript.
 - `.prettierrc.json`: reglas de formato compartidas.
 
@@ -767,6 +783,48 @@ ProjectAether/
 - `WeatherPresenter` reutiliza colores existentes (`colors.tileCliffEdge` para
   la viñeta, `colors.seaFoam` para la lluvia) en vez de sumar una paleta
   nueva, mismo criterio que Sprint 15 aplico para el horizonte.
+- Sonido ambiental (Sprint 17): auditoria previa confirmo que el pipeline de
+  Sprint 4 (`AtmosphereManager`, `AmbientSoundManager`, `SoundPlayer`) estaba
+  completo pero enteramente inerte — `NullSoundPlayer` siempre inyectado,
+  cero assets, `PreloadScene` sin cargar ningun tipo de recurso todavia. Este
+  sprint activa esa arquitectura, no la reemplaza.
+- `PhaserSoundPlayer` es el unico cambio estructural real: la implementacion
+  del puerto `SoundPlayer` que Sprint 4 dejo anticipada ("swapping
+  NullSoundPlayer for a real adapter is the only change needed"). Envuelve
+  `scene.sound`/`scene.cache.audio`; `AmbientSoundManager` sigue sin saber
+  que existe Phaser.
+- Distribucion espacial aditiva sobre el contrato existente:
+  `AmbientSoundDefinition.spatial?` (mismo idioma `anchorTile`+radio que
+  POIs/DangerZones/Interactables, pero con caida continua en vez de binaria).
+  Sin `spatial`, un canal es una cama global constante (Viento, Pajaros); con
+  el, cae linealmente a cero en `falloffRadiusInTiles` (Olas ancladas a la
+  costa, Hojas ancladas a cada arboleda). El calculo vive en una funcion pura
+  nueva (`resolveChannelVolume`), no en `AmbientSoundManager` ni en la
+  escena — mismo patron que `resolveScheduledTile`/`resolveWeatherForDay`.
+  `AtmosphereManager` (la clase) no cambia ni una linea; solo crece su
+  contrato de datos.
+- Dos sonidos con assetKey real este sprint (Viento, Olas), elegidos por ser
+  los que demuestran ambos mecanismos (cama global vs. caida espacial) con
+  el minimo de canales — mismo criterio de "empezar minimo" que Weather
+  (Sprint 16). Hojas queda declarado con sus dos anclas de arboleda pero sin
+  assetKey, y Pajaros/Insectos/Musica quedan exactamente en el estado que
+  Sprint 4 los dejo — sin tocar esa lista salvo para agregar el canal nuevo.
+- Sin persistencia nueva: el volumen espacial se deriva en vivo de la
+  posicion del jugador: cada carga vuelve al mismo estado sin guardar nada.
+  El mute es preferencia de sesion efimera (no sobrevive un reload), misma
+  categoria que `activeLookoutId`.
+- No se toco `WorldClock` ni `DangerManager`: este sprint no tiene ninguna
+  reactividad a hora o clima todavia (a proposito, restriccion explicita).
+- Control de volumen: tecla `M` alterna mute llamando
+  `SoundPlayer.setMasterVolume(0|1)` (nuevo metodo del puerto, no-op en
+  `NullSoundPlayer`); el Developer Overlay muestra el estado
+  (`audio:mute-changed`, nuevo evento). Sonido sin control es peor que sin
+  sonido — restriccion explicita del sprint.
+- Sin crossfade de loop en codigo: `Phaser.Sound` con `loop: true` repite el
+  archivo tal cual. La responsabilidad de que el corte no se note recae en
+  el archivo fuente (grabaciones CC0 de Freesound), no en logica nueva de
+  mezcla — decision consciente para no sumar complejidad que el proyecto no
+  necesitaba todavia.
 - Las colisiones de agua, arboles, rocas y arbustos se calculan en dominio, no
   en Phaser.
 - La profundidad de entidades usa la posicion proyectada en pantalla, preparando
@@ -800,7 +858,12 @@ Incluido:
 - Sistema de atmosfera: viento simulado en dominio, humo de forja, ceniza en el
   campamento, espuma de costa, destellos de agua, hojas y motas al viento,
   sombras suaves y transicion de camara en el mirador.
-- Arquitectura de sonido ambiental lista (canales por zona) sin assets reales.
+- Sonido ambiental: viento (cama global) y olas (ancladas a la costa, con
+  caida por distancia) suenan con assets CC0 reales. Hojas queda declarado
+  con sus dos anclas de arboleda, y pajaros/insectos/musica exactamente en
+  el estado inerte que Sprint 4 dejo — listos para un asset futuro sin
+  tocar el codigo otra vez. Mute con tecla `M`, estado visible en el
+  Developer Overlay.
 - Interaccion con el mundo: tecla `E`, indicador de foco, arboles y rocas
   recolectables con respawn, campamento de busqueda unica (hacha) y forja
   como estacion aun no disponible. Notificaciones temporales en el HUD.
@@ -862,6 +925,11 @@ Incluido:
   la marea peligrosa de la orilla a todo el dia, no solo a la noche. Sin
   persistencia nueva (se deriva del reloj del mundo, igual que la hora del
   dia); el Developer Overlay lo refleja en vivo.
+- Paisaje sonoro ambiental (Sprint 17): viento y olas suenan de verdad,
+  con caida por distancia en las olas (fuerte en la costa, debil desde el
+  bosque) y en las hojas (declaradas, sin asset todavia). Cero reactividad
+  a clima/hora — restriccion explicita de este sprint. Control de volumen
+  global con `M`.
 
 No incluido en esta tarea:
 
@@ -892,4 +960,12 @@ No incluido en esta tarea:
   sistema (la marea) antes que un toque superficial en varios.
 - Efecto de clima sobre recoleccion, combate o visibilidad: el sprint eligio
   la marea como unico efecto mecanico real, a proposito.
+- Hojas y fauna lejana (pajaros) como sonido real: canales declarados con sus
+  anclas espaciales listas, esperando un asset CC0 futuro — mismo estado que
+  Sprint 4 dejo Insectos/Musica.
+- Sonido reactivo a clima u hora (olas mas fuertes en tormenta, etc.):
+  restriccion explicita de Sprint 17, candidato natural para un sprint futuro.
+- Crossfade de loop en codigo: la costura depende del archivo fuente, no de
+  logica de mezcla nueva.
+- Persistencia de la preferencia de mute: se resetea al recargar la pagina.
 - Servidor de juego.

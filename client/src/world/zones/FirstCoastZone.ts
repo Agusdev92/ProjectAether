@@ -1,3 +1,4 @@
+import { AssetManifest } from "@assets/AssetManifest";
 import { GameConstants } from "@shared/config/GameConstants";
 import {
   AmbientEffectTypes,
@@ -267,11 +268,41 @@ export const FirstCoastZone: ZoneDefinition = {
         enabledByDefault: true
       }
     ],
+    // Sprint 17: Wind and Sea are the first two channels with a real asset —
+    // Wind plays as a constant global bed (no `spatial`), Sea is anchored to
+    // the shoreline and fades out toward the treeline (same anchor the tide
+    // danger zone already uses: this coast has one "center"). Leaves is
+    // declared with its spatial anchors per grove but no assetKey yet —
+    // exactly the state Sprint 4 left Insects/Music in, ready for a future
+    // sprint to drop in a file without touching this shape again.
     sounds: [
-      { id: "coast-sea", channel: AmbientSoundChannels.Sea, baseVolume: 0.8 },
-      { id: "coast-wind", channel: AmbientSoundChannels.Wind, baseVolume: 0.6 },
+      {
+        id: "coast-sea",
+        channel: AmbientSoundChannels.Sea,
+        assetKey: AssetManifest.audio.coastSea.key,
+        baseVolume: 0.8,
+        spatial: { anchorTile: { x: 12, y: 39 }, falloffRadiusInTiles: 18 }
+      },
+      {
+        id: "coast-wind",
+        channel: AmbientSoundChannels.Wind,
+        assetKey: AssetManifest.audio.coastWind.key,
+        baseVolume: 0.6
+      },
       { id: "coast-birds", channel: AmbientSoundChannels.Birds, baseVolume: 0.4 },
       { id: "coast-insects", channel: AmbientSoundChannels.Insects, baseVolume: 0.3 },
+      {
+        id: "coast-leaves-west",
+        channel: AmbientSoundChannels.Leaves,
+        baseVolume: 0.45,
+        spatial: { anchorTile: { x: 13, y: 26 }, falloffRadiusInTiles: 12 }
+      },
+      {
+        id: "coast-leaves-east",
+        channel: AmbientSoundChannels.Leaves,
+        baseVolume: 0.45,
+        spatial: { anchorTile: { x: 37, y: 25 }, falloffRadiusInTiles: 12 }
+      },
       { id: "coast-music", channel: AmbientSoundChannels.Music, baseVolume: 0.5 }
     ]
   },

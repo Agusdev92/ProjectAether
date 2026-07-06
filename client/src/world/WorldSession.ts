@@ -2,6 +2,8 @@ import { Player } from "@entities/Player";
 import type { MovementVector } from "@entities/EntityTypes";
 import { GameConstants } from "@shared/config/GameConstants";
 import { AtmosphereManager } from "@world/atmosphere/AtmosphereManager";
+import type { AmbientChannelVolumeView } from "@world/atmosphere/AtmosphereTypes";
+import { resolveChannelVolume } from "@world/atmosphere/SoundSpatializer";
 import { WorldClock } from "@world/clock/WorldClock";
 import type { CollisionProvider } from "@world/collision/CollisionProvider";
 import { CraftingManager } from "@world/crafting/CraftingManager";
@@ -225,6 +227,20 @@ export class WorldSession {
    */
   public getActiveDangerZones(): readonly DangerZoneDefinition[] {
     return this.danger.getActiveZones(this.clock.timeOfDay, this.atmosphere.currentWeather);
+  }
+
+  /**
+   * Effective playback volume for every ambient sound channel, resolved from
+   * the player's position — global beds (Wind, Birds) return a constant
+   * baseVolume; positional channels (Sea, Leaves) fade with distance. A pure
+   * read, same shape as getNpcPositions()/getActiveDangerZones(): the scene
+   * never does this math itself, it only applies the result.
+   */
+  public getAmbientChannelVolumes(): readonly AmbientChannelVolumeView[] {
+    return this.atmosphere.sounds.map((definition) => ({
+      id: definition.id,
+      volume: resolveChannelVolume(definition, this.player.position)
+    }));
   }
 
   /**

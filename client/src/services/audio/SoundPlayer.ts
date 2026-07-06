@@ -9,6 +9,8 @@ export type SoundPlayer = Readonly<{
   playLoop(assetKey: string, volume: number): void;
   setVolume(assetKey: string, volume: number): void;
   stop(assetKey: string): void;
+  /** Global mute/volume control, independent of any individual channel. */
+  setMasterVolume(volume: number): void;
 }>;
 
 /**
@@ -30,6 +32,10 @@ export class NullSoundPlayer implements SoundPlayer {
   }
 
   public stop(): void {
+    // Intentionally silent: no audio assets exist yet.
+  }
+
+  public setMasterVolume(): void {
     // Intentionally silent: no audio assets exist yet.
   }
 }

@@ -6,7 +6,10 @@
 export const AssetManifest = {
   images: {},
   spritesheets: {},
-  audio: {},
+  audio: {
+    coastWind: { key: "coast-wind", path: "audio/coast-wind.mp3" },
+    coastSea: { key: "coast-sea", path: "audio/coast-sea.mp3" }
+  },
   tilemaps: {},
   data: {}
 } as const satisfies AssetManifestDefinition;

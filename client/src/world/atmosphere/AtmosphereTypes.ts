@@ -43,6 +43,7 @@ export const AmbientSoundChannels = {
   Birds: "birds",
   Insects: "insects",
   Rain: "rain",
+  Leaves: "leaves",
   Music: "music"
 } as const;
 
@@ -59,12 +60,27 @@ export type AmbientEffectDefinition = Readonly<{
 /**
  * A single ambience audio channel declared by a zone. assetKey stays optional
  * on purpose: zones can declare their soundscape before audio files exist.
+ * spatial is optional too: without it, a channel plays as a constant
+ * baseVolume bed everywhere (Wind, Birds); with it, the channel fades
+ * linearly to zero at falloffRadiusInTiles (Sea, Leaves) — same
+ * anchorTile+radius idiom already used for POIs/DangerZones/Interactables,
+ * continuous instead of binary.
  */
 export type AmbientSoundDefinition = Readonly<{
   id: string;
   channel: AmbientSoundChannel;
   assetKey?: string;
   baseVolume: number;
+  spatial?: Readonly<{
+    anchorTile: TileCoordinate;
+    falloffRadiusInTiles: number;
+  }>;
+}>;
+
+/** Resolved playback volume for one ambient sound channel, ready for presentation. */
+export type AmbientChannelVolumeView = Readonly<{
+  id: string;
+  volume: number;
 }>;
 
 /** Wind as domain data: a direction in world space plus current strength 0..1. */

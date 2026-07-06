@@ -3,6 +3,7 @@ import { AmbientParticleSystem } from "@game/atmosphere/AmbientParticleSystem";
 import { EnvironmentEffects } from "@game/atmosphere/EnvironmentEffects";
 import { LookoutCamera } from "@game/atmosphere/LookoutCamera";
 import { WeatherPresenter } from "@game/atmosphere/WeatherPresenter";
+import { PhaserSoundPlayer } from "@game/audio/PhaserSoundPlayer";
 import { ActionKey } from "@game/input/ActionKey";
 import { KeyboardMovement } from "@game/input/KeyboardMovement";
 import { CreatureRenderer } from "@game/rendering/CreatureRenderer";
@@ -16,7 +17,7 @@ import { PlayerVitalityPresenter } from "@game/rendering/PlayerVitalityPresenter
 import { PoiRenderer } from "@game/rendering/PoiRenderer";
 import { SceneKeys } from "@game/scene-keys";
 import { AmbientSoundManager } from "@services/audio/AmbientSoundManager";
-import { NullSoundPlayer } from "@services/audio/SoundPlayer";
+import type { SoundPlayer } from "@services/audio/SoundPlayer";
 import { gameEvents } from "@services/events/GameEvents";
 import { LocalStorageClockStore } from "@services/persistence/ClockStore";
 import { LocalStorageSaveStore } from "@services/persistence/SaveStore";
@@ -55,6 +56,9 @@ export class WorldScene extends Phaser.Scene {
   private creatureRenderer?: CreatureRenderer;
   private vitalityPresenter?: PlayerVitalityPresenter;
   private weatherPresenter?: WeatherPresenter;
+  private soundPlayer?: SoundPlayer;
+  private muteKey?: ActionKey;
+  private soundMuted = false;
   private readonly saveStore: SaveStore = new LocalStorageSaveStore();
   private lastTimeOfDay?: TimeOfDayType;
   private lastWeather?: WeatherType;
@@ -101,6 +105,7 @@ export class WorldScene extends Phaser.Scene {
     this.createAtmosphere();
     this.interactionKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.E);
     this.survivalCraftKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.C);
+    this.muteKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.M);
     this.interactionIndicator = new InteractionIndicator(this, this.tilemapRenderer);
     this.playerMarker = this.createPlayerMarker();
     this.configureCamera();
@@ -207,6 +212,8 @@ export class WorldScene extends Phaser.Scene {
     this.updateSurvivalCraftingPresentation();
     this.updateTimeOfDayPresentation();
     this.updateWeatherPresentation();
+    this.updateAmbientSoundPresentation();
+    this.updateSoundMutePresentation();
     this.npcRenderer?.sync(this.worldSession.getNpcPositions());
     this.dangerZoneRenderer?.sync(this.worldSession.getActiveDangerZones());
     this.creatureRenderer?.sync(this.worldSession.getCreaturePresence());
@@ -258,6 +265,34 @@ export class WorldScene extends Phaser.Scene {
       zoneId: this.worldSession.zone.tilemap.id,
       weather
     });
+  }
+
+  /**
+   * Applies the domain's resolved per-channel volumes to playback every
+   * frame — a pure read (getAmbientChannelVolumes) turned into the one
+   * side effect it's allowed to have (AmbientSoundManager already
+   * no-ops a channel that never got an assetKey, so Leaves/Insects/Music
+   * are harmless to include here even while silent).
+   */
+  private updateAmbientSoundPresentation(): void {
+    for (const channel of this.worldSession.getAmbientChannelVolumes()) {
+      this.ambientSound?.setChannelVolume(channel.id, channel.volume);
+    }
+  }
+
+  /**
+   * Global mute toggle: sound with no control is worse than no sound at
+   * all. Independent of the developer overlay — `M` always works; the
+   * overlay only displays the current state when it happens to be open.
+   */
+  private updateSoundMutePresentation(): void {
+    if (!this.muteKey?.justPressed()) {
+      return;
+    }
+
+    this.soundMuted = !this.soundMuted;
+    this.soundPlayer?.setMasterVolume(this.soundMuted ? 0 : 1);
+    gameEvents.emit("audio:mute-changed", { muted: this.soundMuted });
   }
 
   /**
@@ -427,7 +462,8 @@ export class WorldScene extends Phaser.Scene {
 
     const { atmosphere, zone, tilemap } = this.worldSession;
 
-    this.ambientSound = new AmbientSoundManager(new NullSoundPlayer());
+    this.soundPlayer = new PhaserSoundPlayer(this);
+    this.ambientSound = new AmbientSoundManager(this.soundPlayer);
     this.ambientSound.loadZoneChannels(zone.atmosphere.sounds);
     this.ambientSound.startAmbience();
 

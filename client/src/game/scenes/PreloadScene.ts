@@ -22,6 +22,14 @@ export class PreloadScene extends Phaser.Scene {
     });
 
     this.renderLoadingView();
+    this.loadAudioManifest();
+  }
+
+  /** Loads every audio entry declared in the manifest; empty entries are a no-op. */
+  private loadAudioManifest(): void {
+    for (const entry of Object.values(AssetManifest.audio)) {
+      this.load.audio(entry.key, entry.path);
+    }
   }
 
   public create(): void {

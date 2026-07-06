@@ -1,5 +1,74 @@
 # Changelog
 
+## Sprint 17 - Ambient Soundscape
+
+- **Auditoria previa** (obligatoria antes de programar): el pipeline de sonido
+  de Sprint 4 (`AtmosphereManager`, `AmbientSoundManager`, `SoundPlayer`)
+  estaba completo en arquitectura pero 100% inerte. Cadena de causas
+  confirmada: `AmbientSoundManager.startChannel()` exige `assetKey` +
+  `player.hasAsset(assetKey)`; `WorldScene` siempre inyectaba
+  `NullSoundPlayer` (`hasAsset()` devuelve `false` siempre); ninguna zona
+  declaraba `assetKey` en sus `AmbientSoundDefinition`; `client/public/`
+  estaba vacio; `AssetManifest.audio` era `{}`; `PreloadScene.preload()` no
+  llamaba a `this.load.*` de ningun tipo, para ningun asset del juego. Sin
+  otro sistema de sonido en el proyecto (UI, crafting, combate) — confirmado
+  por busqueda exhaustiva. Este sprint activa esa arquitectura, no la
+  reemplaza.
+- **Assets**: dos grabaciones CC0 (Freesound) provistas por el usuario —
+  `client/public/audio/coast-wind.mp3` y `coast-sea.mp3`. Hojas y Pajaros
+  quedan declarados sin `assetKey`, exactamente el estado que Sprint 4 dejo
+  Insectos/Musica, a la espera de un asset futuro.
+- **`game/audio/PhaserSoundPlayer.ts`** (nuevo): la implementacion real del
+  puerto `SoundPlayer` que el propio comentario de Sprint 4 anticipaba
+  ("swapping NullSoundPlayer for a real adapter is the only change needed
+  to make the world audible"). Envuelve `scene.sound`/`scene.cache.audio`;
+  `AmbientSoundManager` no cambio ni una linea, sigue sin saber que Phaser
+  existe.
+- **Distribucion espacial aditiva**: `AmbientSoundDefinition` gana un campo
+  opcional `spatial?: { anchorTile, falloffRadiusInTiles }` en
+  `AtmosphereTypes.ts` (mismo idioma `anchorTile`+radio ya usado por
+  POIs/DangerZones/Interactables, pero con caida continua en vez de
+  binaria). Sin `spatial`, un canal es una cama global constante — Viento,
+  Pajaros. Con el, el volumen cae linealmente a cero en
+  `falloffRadiusInTiles` — Olas (ancladas a la orilla, mismo anchorTile que
+  ya usa `danger-tide-shoreline`) y Hojas (ancladas a cada arboleda, dos
+  instancias del mismo asset futuro). El calculo vive en una funcion pura
+  nueva, **`world/atmosphere/SoundSpatializer.ts`** (`resolveChannelVolume`),
+  mismo patron que `resolveScheduledTile`/`resolveWeatherForDay`: sin
+  estado, sin Phaser. `WorldSession.getAmbientChannelVolumes()` expone el
+  resultado, mismo patron que `getNpcPositions()`/`getActiveDangerZones()` —
+  la escena nunca hace la matematica, solo aplica el resultado via
+  `AmbientSoundManager.setChannelVolume()` (metodo que ya existia, sin
+  cambios) cada frame.
+- **`AtmosphereManager` (la clase) no cambio**: solo crecio su contrato de
+  datos. Cero cambios en `WorldClock` ni en `DangerManager` — este sprint no
+  tiene ninguna reactividad a hora o clima, restriccion explicita.
+- **Sin persistencia nueva**: el volumen espacial se deriva en vivo de la
+  posicion del jugador en cada frame; recargar la pagina no pierde nada
+  porque no habia nada que guardar. El mute es preferencia de sesion
+  efimera, misma categoria que `activeLookoutId`.
+- **Control de volumen**: tecla `M` (`updateSoundMutePresentation()` en
+  `WorldScene`) alterna `SoundPlayer.setMasterVolume(0|1)` — metodo nuevo
+  del puerto, no-op en `NullSoundPlayer`. Nuevo evento
+  `audio:mute-changed`; el Developer Overlay ya escuchaba
+  `atmosphere:weather-changed`/`world:time-of-day-changed` con el mismo
+  patron, ahora suma una linea "Sonido: silenciado/activo (M)".
+- **Sin crossfade de loop en codigo**: `Phaser.Sound` con `loop: true`
+  repite el archivo tal cual — la costura depende de que el archivo fuente
+  ya loopee limpio, no de logica de mezcla nueva. Decision consciente para
+  no sumar complejidad (dual-buffer crossfade) que el proyecto no necesitaba
+  todavia; documentado como candidato futuro si algun asset real trae un
+  corte audible.
+- Verificacion manual: los dos `.mp3` cargan (200 OK) via
+  `PreloadScene`/`AssetManifest`; ambos canales quedan `isPlaying: true` con
+  el volumen exacto que resuelve `getAmbientChannelVolumes()`. Teletransportar
+  al jugador a la arboleda occidental confirma el mecanismo espacial en
+  ambas direcciones a la vez: Olas cae de 0.76 a 0.20, Hojas-oeste sube de 0
+  a 0.42 (todavia silencioso, sin asset, pero el numero resuelto es
+  correcto). `M` lleva `scene.sound.volume` a 0 y de vuelta a 1; el
+  Developer Overlay reflejo `soundMuted` en ambos sentidos. Sin errores de
+  consola.
+
 ## Sprint 16 - Weather System
 
 - Hallazgo previo a implementar: el pipeline de clima existia desde Sprint 4

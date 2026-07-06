@@ -157,6 +157,9 @@ export type GameEventMap = {
     readonly zoneName: string;
     readonly message: string;
   };
+  "audio:mute-changed": {
+    readonly muted: boolean;
+  };
   "ui:hud-ready": undefined;
   "debug:overlay-toggled": {
     readonly enabled: boolean;
