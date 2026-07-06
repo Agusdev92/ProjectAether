@@ -7,7 +7,13 @@ import { GameConstants } from "@shared/config/GameConstants";
  * across renderers without any of them owning the other.
  */
 
-/** Soft ground shadow used under props and POIs; grounds objects visually. */
+/**
+ * Soft ground shadow used under props, POIs, NPCs, creatures, and the player;
+ * grounds objects visually. Offset consistently on the x-axis
+ * (GameConstants.lighting.shadowOffsetX) so every shadow in the world implies
+ * the same light-source direction instead of each object being lit straight
+ * from above in isolation.
+ */
 export function createSoftShadow(
   scene: Phaser.Scene,
   width: number,
@@ -15,7 +21,7 @@ export function createSoftShadow(
   offsetY: number
 ): Phaser.GameObjects.Ellipse {
   return scene.add.ellipse(
-    0,
+    GameConstants.lighting.shadowOffsetX,
     offsetY,
     width,
     height,

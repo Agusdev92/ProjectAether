@@ -37,7 +37,7 @@ export class GroundClutterRenderer {
 
   private renderItem(item: GroundClutterItem): void {
     const position = this.tilemapRenderer.projectWorldToScreen(item.position.x, item.position.y);
-    const container = this.createObject(item.kind);
+    const container = this.createObject(item);
 
     if (!container) {
       return;
@@ -47,37 +47,50 @@ export class GroundClutterRenderer {
     container.setDepth(GameConstants.depth.entities + position.y);
   }
 
-  private createObject(kind: string): Phaser.GameObjects.Container | undefined {
-    switch (kind) {
+  private createObject(item: GroundClutterItem): Phaser.GameObjects.Container | undefined {
+    const variant = pickVariant(item.position);
+
+    switch (item.kind) {
       case InteractableKinds.DriftwoodPile:
-        return this.createDriftwoodPile();
+        return this.createDriftwoodPile(variant);
       case InteractableKinds.LooseStones:
-        return this.createLooseStones();
+        return this.createLooseStones(variant);
       default:
         return undefined;
     }
   }
 
-  private createDriftwoodPile(): Phaser.GameObjects.Container {
+  /** Two arrangements so the handful of piles scattered near spawn don't repeat. */
+  private createDriftwoodPile(variant: number): Phaser.GameObjects.Container {
     const shadow = createSoftShadow(this.scene, 26, 10, 4);
+    const rotationA = variant === 0 ? 0.25 : 0.45;
+    const rotationB = variant === 0 ? -0.35 : -0.15;
     const stickA = this.scene.add
       .rectangle(-4, 0, 26, 5, this.color(GameConstants.colors.poiWood), 1)
-      .setRotation(0.25);
+      .setRotation(rotationA);
     const stickB = this.scene.add
-      .rectangle(4, -2, 22, 5, this.color(GameConstants.colors.poiWoodDark), 1)
-      .setRotation(-0.35);
+      .rectangle(4, -2, variant === 0 ? 22 : 27, 5, this.color(GameConstants.colors.poiWoodDark), 1)
+      .setRotation(rotationB);
 
     return this.scene.add.container(0, 0, [shadow, stickA, stickB]);
   }
 
-  private createLooseStones(): Phaser.GameObjects.Container {
+  private createLooseStones(variant: number): Phaser.GameObjects.Container {
     const shadow = createSoftShadow(this.scene, 24, 9, 3);
-    const left = this.scene.add.ellipse(-7, -1, 12, 9, this.color(GameConstants.colors.rock), 1);
+    const sizeScale = variant === 0 ? 1 : 0.8;
+    const left = this.scene.add.ellipse(
+      -7,
+      -1,
+      12 * sizeScale,
+      9 * sizeScale,
+      this.color(GameConstants.colors.rock),
+      1
+    );
     const right = this.scene.add.ellipse(
       6,
       1,
-      10,
-      8,
+      10 / sizeScale,
+      8 / sizeScale,
       this.color(GameConstants.colors.rockShadow),
       1
     );
@@ -88,4 +101,11 @@ export class GroundClutterRenderer {
   private color(hex: string): number {
     return Phaser.Display.Color.HexStringToColor(hex).color;
   }
+}
+
+/** Deterministic per-item variant (0 or 1) from its fixed world position. */
+function pickVariant(position: WorldCoordinate): number {
+  const hash = Math.abs(position.x * 92_821 + position.y * 68_917);
+
+  return hash % 2;
 }

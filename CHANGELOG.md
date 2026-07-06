@@ -1,5 +1,84 @@
 # Changelog
 
+## Sprint 15 - Visual Polish + World Scale
+
+- Sprint puramente visual y de percepcion de escala — sin mecanicas nuevas,
+  sin contenido jugable nuevo. Evaluacion previa: First Coast es 48x48 tiles
+  (~40x37 realmente caminables descontando acantilado y mar); la proyeccion
+  isometrica actual (tile.width 96, viewport 1280x720) solo muestra ~13 tiles
+  de profundidad en pantalla en un momento dado, y se confirmo que
+  `WorldTilemap.getVisibleTiles()` recorta estrictamente a
+  `[0, widthInTiles-1]` — mas alla del borde del mapa hoy no hay silueta ni
+  niebla, es lienzo vacio.
+- **Frente A (calidad y variedad), en la capa de render, cero cambios de
+  dominio:**
+  - Variacion de color por tile (`jitterFillColor` en
+    `IsometricTilemapRenderer`): jitter de luminosidad determinístico por
+    hash de coordenada — mismo tile, mismo resultado siempre, cero llamadas
+    de dibujo extra (mismo `fillStyle`/`strokePath` de siempre, con un color
+    calculado).
+  - Sombras con direccion de luz consistente:
+    `GameConstants.lighting.shadowOffsetX` aplicado en `createSoftShadow`
+    (afecta a todos sus consumidores existentes: props, NPCs, criaturas,
+    jugador) y en la sombra propia de la roca, que no usaba el helper.
+  - 3 variantes de árbol, 3 de roca y 2 de arbusto (`TreeVariants`,
+    `RockVariants`, `BushVariants`), elegidas por el mismo estilo de hash
+    determinístico ya usado en las zonas para generacion de terreno, pero con
+    multiplicadores independientes para que la variante nunca correlacione
+    con si el tile tiene o no una feature. Como los props ya se crean una
+    sola vez y se cachean en `propObjects` (Sprint 3), la variedad no agrega
+    costo recurrente.
+  - 2 variantes cada una para las piezas de madera de deriva y piedras
+    sueltas en `GroundClutterRenderer`, elegidas por hash de su posicion fija.
+  - Bordeado de transicion entre tipos de terreno (grass→arena, etc.):
+    **implementado, medido y descartado**. Con la misma prueba de estres
+    (redibujado forzado en cada cruce de tile durante 3s), el FPS promedio
+    cayo de ~59.5 a ~50.6 y el minimo de ~58.9 a ~42.3 (136→82 ciclos
+    completados en la misma ventana de tiempo). Las 4 consultas
+    `getTileAt()` extra por tile, sobre un redibujado que ya toca ~1369
+    tiles por cruce (`viewRadius=18`), no se justificaban para una mejora
+    puramente cosmetica. Revertido en el mismo sprint — documentado como
+    decision tecnica, no omitido en silencio.
+- **Frente B (sensacion de escala, sin contenido jugable nuevo):**
+  - Nuevo `HorizonRenderer`: silueta de cadena montañosa estatica al norte,
+    construida una unica vez en `create()`, nunca tocada por el loop de
+    `renderAround()` — costo cero en runtime mas alla del dibujo inicial. Dos
+    capas (`scrollFactor` 0.75 lejana / 0.88 cercana) para parallax sutil.
+    Reutiliza la paleta existente (`colors.tileCliff` del acantilado ya
+    existente) mas un unico color atmosferico nuevo (`colors.horizonFar`)
+    para la perspectiva atmosferica de la capa lejana — cero assets nuevos,
+    todo primitivas de Phaser como el resto del proyecto.
+  - Ubicacion elegida: al norte, mas alla de la colina del mirador — no al
+    oeste (el acantilado ya "cierra" ese lado, una montaña ahi repetiria el
+    mismo mensaje) ni reforzando el camino al pueblo del este (ya es una
+    promesa explicita con cartel de texto). El norte reutiliza y por fin
+    _paga_ un mecanismo que ya existia pero no tenia recompensa visual real:
+    `LookoutCamera` (Sprint 4) hace zoom-out en el mirador prometiendo "una
+    vista que revela la geografia" (Pilar 4) — hoy esa vista mostraba
+    exactamente lo mismo que a nivel de suelo, solo mas ancho. Nunca
+    nombrada, nunca explicada (Pilar 6, Visión a 10 años: "una montaña que
+    no cruzó").
+  - Posicionamiento ajustado empiricamente: el primer intento con
+    `scrollFactor` bajo (0.15/0.3, tecnica clasica de parallax profundo) saco
+    las capas fuera de pantalla — a la escala de camara de este mapa (scroll
+    ~1870px cerca del mirador), un scrollFactor bajo multiplicado por un
+    scroll grande desplaza demasiado el objeto. Se ajustaron los valores
+    (0.75/0.88) verificando con capturas de pantalla en el mirador, la plaza
+    y el spawn.
+  - Zoom por defecto de camara bajado de 1 a 0.92
+    (`GameConstants.camera.defaultZoom`): mas mundo en el mismo viewport sin
+    tocar el tamaño real del tilemap — pura percepcion, costo nulo (una sola
+    propiedad de camara). `LookoutCamera` ahora vuelve a este valor al salir
+    del mirador en vez de a un `1` hardcodeado.
+  - No se amplio el `viewRadius` real de `IsometricTilemapRenderer` (18
+    tiles): escalar el area interactiva redibujada habria escalado ese mismo
+    costo cuadraticamente. La sensacion de escala viene deliberadamente de
+    una capa estatica + zoom, nunca de redibujar mas mundo real.
+- Correccion de referencia: Pilar 6 del documento es "el lore nunca debe
+  bloquear el gameplay", no "ninguna mecanica solo porque otros MMO la
+  tienen" (eso es Pilar 15) — la propuesta se apoyo en los pilares correctos
+  (4, 5, 9, 15 y la Visión a 10 años).
+
 ## Sprint 14 - Combat Foundation
 
 - Primer sistema de combate del juego. Diseño elegido tras responder cuatro

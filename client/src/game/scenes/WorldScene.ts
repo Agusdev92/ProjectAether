@@ -7,6 +7,7 @@ import { KeyboardMovement } from "@game/input/KeyboardMovement";
 import { CreatureRenderer } from "@game/rendering/CreatureRenderer";
 import { DangerZoneRenderer } from "@game/rendering/DangerZoneRenderer";
 import { GroundClutterRenderer } from "@game/rendering/GroundClutterRenderer";
+import { HorizonRenderer } from "@game/rendering/HorizonRenderer";
 import { InteractionIndicator } from "@game/rendering/InteractionIndicator";
 import { IsometricTilemapRenderer } from "@game/rendering/IsometricTilemapRenderer";
 import { NpcRenderer } from "@game/rendering/NpcRenderer";
@@ -91,6 +92,8 @@ export class WorldScene extends Phaser.Scene {
     this.dangerZoneRenderer = new DangerZoneRenderer(this, this.tilemapRenderer);
     this.creatureRenderer = new CreatureRenderer(this, this.tilemapRenderer);
     this.vitalityPresenter = new PlayerVitalityPresenter(this);
+    // Built once, never referenced again: purely static background, no sync().
+    new HorizonRenderer(this, this.tilemapRenderer);
     this.createAtmosphere();
     this.interactionKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.E);
     this.survivalCraftKey = new ActionKey(this, Phaser.Input.Keyboard.KeyCodes.C);
@@ -484,6 +487,7 @@ export class WorldScene extends Phaser.Scene {
 
     camera.setBounds(0, 0, mapPixelSize, mapPixelSize);
     camera.setDeadzone(GameConstants.camera.deadzoneWidth, GameConstants.camera.deadzoneHeight);
+    camera.setZoom(GameConstants.camera.defaultZoom);
 
     if (this.playerMarker) {
       camera.startFollow(

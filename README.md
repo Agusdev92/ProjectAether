@@ -77,6 +77,7 @@ ProjectAether/
 │     │  │  ├─ CreatureRenderer.ts
 │     │  │  ├─ DangerZoneRenderer.ts
 │     │  │  ├─ GroundClutterRenderer.ts
+│     │  │  ├─ HorizonRenderer.ts
 │     │  │  ├─ InteractionIndicator.ts
 │     │  │  ├─ IsometricTilemapRenderer.ts
 │     │  │  ├─ NpcRenderer.ts
@@ -380,6 +381,11 @@ ProjectAether/
   de una barra de vida — flash y shake de camara al recibir dano, viñeta
   continua segun la proporcion de vida restante. Vive en la camara del mundo,
   nunca en un panel de UI.
+- `client/src/game/rendering/HorizonRenderer.ts`: silueta de montaña estatica
+  al norte, construida una unica vez en `create()` — nunca tocada por el
+  redibujado por-tile de `IsometricTilemapRenderer`, costo cero en runtime
+  mas alla del dibujo inicial. Dos capas con distinto `scrollFactor` para
+  parallax sutil.
 - `eslint.config.js`: reglas de lint para TypeScript.
 - `.prettierrc.json`: reglas de formato compartidas.
 
@@ -661,6 +667,40 @@ ProjectAether/
 - El tileset temporal esta renderizado con primitivas Phaser en
   `IsometricTilemapRenderer`. Esto permite iterar direccion visual sin fijar
   todavia un pipeline de arte definitivo.
+- Pulido visual + escala (Sprint 15), sin mecanicas nuevas: variacion de color
+  por tile (`jitterFillColor`, hash determinístico — mismo tile, mismo
+  resultado siempre, cero llamadas de dibujo extra), sombras con offset de luz
+  consistente (`GameConstants.lighting.shadowOffsetX`, aplicado en
+  `createSoftShadow` y en la sombra propia de la roca), y 3 variantes de
+  árbol/roca y 2 de arbusto/decoración de piso elegidas por el mismo hash —
+  como los props ya se crean una sola vez y se cachean, la variedad no agrega
+  costo recurrente.
+- Silueta de montaña al norte (`HorizonRenderer`), construida una unica vez,
+  nunca en el loop de `renderAround()` — le da al zoom-out existente del
+  mirador (`LookoutCamera`, Sprint 4) algo nuevo que revelar en vez de la
+  misma vista, mas ancha. Nunca nombrada, nunca explicada (Pilar 6, Visión a
+  10 años: "una montaña que no cruzó"). Se probo primero con
+  `scrollFactor` bajo (0.15/0.3, tecnica clasica de parallax profundo) pero a
+  la escala de camara de este mapa (scroll ~1870px cerca del mirador) eso
+  saca las capas fuera de pantalla; los valores finales (0.75/0.88) se
+  ajustaron empiricamente con capturas de pantalla hasta que ambas capas se
+  vieran con una diferencia de profundidad sutil sin desaparecer.
+- Zoom por defecto de camara bajado a 0.92 (antes 1) para que entre mas mundo
+  en el mismo viewport sin tocar el tamaño real del tilemap — pura
+  percepcion. `LookoutCamera` ahora vuelve a `GameConstants.camera.defaultZoom`
+  al salir del mirador en vez de a un `1` fijo.
+- Bordeado de transicion entre tipos de terreno: implementado, medido y
+  **descartado**. Con la misma prueba de estres (redibujado forzado en cada
+  tile cruzado durante 3s), el FPS promedio cayo de ~59.5 a ~50.6 y el minimo
+  de ~58.9 a ~42.3 (136→82 ciclos completados en la misma ventana). El costo
+  real de las 4 consultas `getTileAt()` extra por tile, sobre un redibujado
+  que ya toca ~1369 tiles por cruce, no se justificaba para una mejora
+  puramente cosmetica — revertido en el mismo sprint, no arrastrado como
+  deuda tecnica silenciosa.
+- No se amplio el `viewRadius` real de `IsometricTilemapRenderer` (18 tiles):
+  escalar el area interactiva redibujada habria escalado ese mismo costo de
+  forma aproximadamente cuadratica. La sensacion de escala viene de una capa
+  estatica (horizonte) y de zoom, nunca de redibujar mas mundo real.
 - Las colisiones de agua, arboles, rocas y arbustos se calculan en dominio, no
   en Phaser.
 - La profundidad de entidades usa la posicion proyectada en pantalla, preparando
@@ -744,9 +784,17 @@ Incluido:
   maxima, primera pieza de armadura del juego). Perder una pelea reposiciona
   en el spawn y cuesta los recursos sueltos que se llevaban encima — nunca
   herramientas, nunca equipo, nunca game over.
+- Pulido visual y sensacion de escala, sin mecanicas ni contenido jugable
+  nuevo: variacion de color por tile, sombras con direccion de luz
+  consistente, variantes de arbol/roca/arbusto/decoracion de piso, silueta de
+  montaña estatica al norte visible desde el mirador, y zoom de camara por
+  defecto levemente reducido (0.92).
 
 No incluido en esta tarea:
 
+- Bordeado de transicion entre tipos de terreno: probado y descartado por
+  costo de performance medido (ver Decisiones de arquitectura) — no es una
+  omision silenciosa.
 - Economia y comercio.
 - Habilidades y experiencia.
 - Reputacion.

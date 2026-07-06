@@ -23,7 +23,12 @@ export const GameConstants = {
   camera: {
     followLerp: 0.08,
     deadzoneWidth: 120,
-    deadzoneHeight: 80
+    deadzoneHeight: 80,
+    // Slightly zoomed out from 1:1 so more of the world sits inside the same
+    // viewport without touching the tilemap's real size — a perception trick,
+    // not a bigger map. LookoutCamera returns here (not to a hardcoded 1)
+    // when the player leaves the lookout.
+    defaultZoom: 0.92
   },
   inventory: {
     capacitySlots: 24,
@@ -114,6 +119,25 @@ export const GameConstants = {
     leafParticleCount: 14,
     moteParticleCount: 18
   },
+  lighting: {
+    // A single consistent light-source direction applied to every soft
+    // shadow in the world (props, NPCs, creatures, the player) — cheap,
+    // cosmetic-only, and makes the placeholder art read as one coherent
+    // scene instead of flat cutouts each lit from directly above.
+    shadowOffsetX: 8
+  },
+  horizon: {
+    // Built once at scene creation, never touched by the per-tile terrain
+    // redraw loop — costs nothing at runtime beyond the initial draw.
+    // Kept close to 1 on purpose: at this map's scale the camera can scroll
+    // far enough from world origin (~1870px near the lookout) that a
+    // classic deep-parallax factor (0.15-0.3) drifts the layers off-screen
+    // entirely. Values this close together still read as two depths once
+    // the lookout zooms out, without vanishing.
+    farLayerScrollFactor: 0.75,
+    nearLayerScrollFactor: 0.88,
+    peakCount: 7
+  },
   depth: {
     background: 0,
     terrain: 100,
@@ -181,6 +205,7 @@ export const GameConstants = {
     npcShadow: "#0a0d11",
     creature: "#5c4433",
     creatureShadow: "#0a0d11",
+    horizonFar: "#8a9bab",
     debugBackground: "#0d1117"
   },
   fonts: {

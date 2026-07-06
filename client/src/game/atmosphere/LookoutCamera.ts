@@ -30,7 +30,7 @@ export class LookoutCamera {
     this.tween?.stop();
     this.tween = this.scene.tweens.add({
       targets: this.scene.cameras.main,
-      zoom: atLookout ? GameConstants.atmosphere.lookoutZoom : 1,
+      zoom: atLookout ? GameConstants.atmosphere.lookoutZoom : GameConstants.camera.defaultZoom,
       duration: atLookout
         ? GameConstants.atmosphere.lookoutZoomInDurationMs
         : GameConstants.atmosphere.lookoutZoomOutDurationMs,
