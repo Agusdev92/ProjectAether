@@ -129,6 +129,8 @@ ProjectAether/
 │     │  │  └─ GameConstants.ts
 │     │  ├─ events/
 │     │  │  └─ GameEventMap.ts
+│     │  ├─ math/
+│     │  │  └─ NoiseField.ts
 │     │  └─ index.ts
 │     ├─ styles/
 │     │  └─ global.css
@@ -252,6 +254,9 @@ ProjectAether/
   profundidades, capas, colores y fuentes.
 - `client/src/shared/events/GameEventMap.ts`: contrato tipado de eventos del
   juego.
+- `client/src/shared/math/NoiseField.ts`: ruido determinista de 2 octavas
+  (`resolveNoiseAt`) usado para distribucion organica de props — sin Phaser,
+  importable desde dominio y render por igual.
 - `client/src/styles/global.css`: estilos globales de pagina y canvas.
 - `client/src/types/global.d.ts`: tipos globales usados para diagnostico local.
 - `client/src/world/WorldModel.ts`: modelo inicial de mundo sin dependencia de
@@ -842,6 +847,53 @@ ProjectAether/
   el archivo fuente (grabaciones CC0 de Freesound), no en logica nueva de
   mezcla — decision consciente para no sumar complejidad que el proyecto no
   necesitaba todavia.
+- Distribucion organica de props (Sprint 18): unico cambio de dominio del
+  sprint, y deliberado — `isTree`/`isRock`/`isBush` en `FirstCoastZone.ts`
+  (funciones privadas, sin contrato publico) reemplazan `hashedChance` por
+  un umbral sobre `shared/math/NoiseField.ts`. Se toco dominio porque la
+  presencia de un arbol/roca/arbusto decide colision y recolectable — a
+  diferencia del Sprint 15, que solo cambiaba como se ve una feature ya
+  colocada, "donde existe" es un hecho de dominio, no de render.
+- `NoiseField.ts` (`resolveNoiseAt`): value-noise de 2 octavas con
+  interpolacion bilineal y curva fade de Perlin — no Perlin/Simplex real (sin
+  vectores de gradiente), una tecnica equivalente elegida por cuanto poco
+  codigo necesita (~55 lineas) para leerse como manchas organicas en vez de
+  punteado uniforme. El hash del lattice usa mezcla de bits
+  (multiplicacion + xorshift), no modulo simple: un hash tipo
+  `(x*primo+y*primo) % modulo` se mantiene practicamente constante para
+  coordenadas chicas cercanas al origen — exactamente el caso de un mapa de
+  ~48x48 — y no varia nada; se detecto este bug durante la calibracion antes
+  de aplicarlo a `FirstCoastZone.ts`.
+- Umbrales calibrados empiricamente por region (no una formula unica): cada
+  arboleda/zona de rocas/franja de arbustos es una muestra de tamano
+  distinto del mismo campo de ruido continuo, asi que un solo umbral global
+  sobre-pobla una region y vacia la otra por casualidad estadistica — se
+  midio con un script de conteo antes de tocar el archivo real (ver
+  CHANGELOG.md para los numeros exactos) para que la cobertura total se
+  mantenga cerca de la anterior en vez de romper el equilibrio de
+  recoleccion de Sprint 9 por accidente.
+- Gradiente oeste-este de edad de arbol (Frente C, `IsometricTilemapRenderer.ts`):
+  100% render, cero nuevo dato de dominio — el renderer no conoce
+  "arboledas" como concepto, solo una coordenada y el ancho del mapa. Que el
+  efecto (menos arboles jovenes) se concentre cerca del campamento
+  abandonado es consecuencia emergente de la geografia (esa arboleda es la
+  mas al oeste), no un caso especial escrito para ese lugar — la conexion
+  con `WORLD_DIRECTION.md` ("una arboleda con menos arboles jovenes") nunca
+  se narra ni se marca.
+- Amaro y jabali (`NpcRenderer.ts`, `CreatureRenderer.ts`): siluetas mas
+  legibles reutilizando primitivas existentes, cero sprites ni assets
+  nuevos. El sombrero de Amaro reutiliza `colors.poiSail` (la vela del
+  naufragio) en vez de sumar un color — la reutilizacion de paleta refuerza
+  la conexion narrativa "Amaro pertenece al mar" sin codigo nuevo. El pulso
+  de respiracion (tween `yoyo`/`repeat:-1` de escala) vive en un contenedor
+  interno separado de la sombra, mismo patron de tween que ya usa
+  `EnvironmentEffects` para el brillo del agua — nada nuevo en la API de
+  Phaser que el proyecto no usara ya.
+- Performance verificada con el mismo stress-test de Sprint 15 (redibujado
+  forzado en cada cruce de tile durante 3s): FPS idle 59.8 promedio / 59.1
+  minimo, bajo estres 57.1 promedio / 55.4 minimo — una caida de ~5%, muy
+  por debajo del ~15-28% que hizo descartar el bordeado de transicion en
+  Sprint 15. Se mantiene.
 - Las colisiones de agua, arboles, rocas y arbustos se calculan en dominio, no
   en Phaser.
 - La profundidad de entidades usa la posicion proyectada en pantalla, preparando
@@ -947,6 +999,15 @@ Incluido:
   bosque) y en las hojas (declaradas, sin asset todavia). Cero reactividad
   a clima/hora — restriccion explicita de este sprint. Control de volumen
   global con `M`.
+- Distribucion organica y refinamiento de personajes (Sprint 18): arboles,
+  rocas y arbustos se distribuyen con ruido determinista en vez de punteado
+  uniforme — claros y manchas reales, cobertura total similar a la anterior
+  (calibrada y medida, ver CHANGELOG.md). Gradiente sutil de edad de arbol
+  oeste-este, nunca narrado. Amaro con silueta humana y sombrero
+  identificatorio; jabali con lomo bajo, hocico y patas cortas; ambos con un
+  pulso de respiracion sutil. Sin assets externos, sin libreria de ruido
+  externa, sin mecanicas nuevas — puro pulido visual (y un cambio de
+  dominio minimo y explicado: el algoritmo interno de colocacion de props).
 
 No incluido en esta tarea:
 
@@ -985,4 +1046,6 @@ No incluido en esta tarea:
 - Crossfade de loop en codigo: la costura depende del archivo fuente, no de
   logica de mezcla nueva.
 - Persistencia de la preferencia de mute: se resetea al recargar la pagina.
+- Variantes de tamaño para rocas/arbustos (solo arboles tienen gradiente de
+  edad este sprint) y sonido/animacion de idle mas alla del pulso de escala.
 - Servidor de juego.

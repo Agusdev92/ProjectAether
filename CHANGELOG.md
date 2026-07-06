@@ -1,5 +1,89 @@
 # Changelog
 
+## Sprint 18 - Organic Distribution + Character Refinement
+
+- **Tension de diseño resuelta antes de programar**: "bosques con claros
+  reales" no puede ser 100% render, a diferencia de Sprint 15 — si un tile
+  tiene un arbol hoy lo decide `FirstCoastZone.ts` (dominio), y esa decision
+  determina colision e interactuable recolectable, no solo apariencia.
+  Confirmado con el usuario: se toca el algoritmo interno de
+  `isTree`/`isRock`/`isBush` (funciones privadas, sin contrato publico,
+  `TerrainResolver`/`ZoneDefinition` intactos) — el cambio de dominio mas
+  chico posible.
+- **`shared/math/NoiseField.ts`** (nuevo): `resolveNoiseAt(x, y, frequency, seed)`,
+  value-noise de 2 octavas con interpolacion bilineal y curva fade de Perlin
+  (`6t⁵-15t⁴+10t³`), ~55 lineas, sin libreria externa. El hash del lattice
+  usa mezcla de bits (`Math.imul` + xorshift) en vez de un modulo simple —
+  se detecto durante la calibracion que
+  `(ix*primo+iy*primo) % modulo` se mantiene practicamente constante para
+  coordenadas chicas cercanas al origen (exactamente el caso de un mapa de
+  ~48x48: la suma nunca alcanza a dar la vuelta al modulo), dando un campo
+  casi plano en vez de ruido real. El bug se encontro y corrigio antes de
+  tocar el archivo de zona real.
+- **Calibracion empirica por region** (pedido explicito: verificar que
+  ninguna arboleda quede accidentalmente vaciada). Un script de conteo
+  aparte (no shippeado) comparo cobertura vieja vs. nueva sobre el mapa
+  completo, con el mismo filtro de tile Grass + exclusion de footprint de
+  POI que usa el juego real:
+  - Arboles: 133 -> 130 (oeste 48->46, este 85->84).
+  - Rocas: 43 -> 44.
+  - Arbustos: 18 -> 16.
+    Ningun umbral global funciono para ambas arboledas a la vez — son
+    muestras de tamaño distinto del mismo campo continuo, y un umbral
+    compartido sobre-pobló el este (203 tiles con un intento inicial, contra
+    85 original) mientras vaciaba a la mitad el oeste (19-29 contra 48
+    original) por pura casualidad estadistica de donde caen esas coordenadas
+    en el campo de ruido. Cada region terminó con su propio umbral (y las
+    rocas/arbustos con su propia semilla, para no correlacionar visualmente
+    con el patron de las arboledas) — mismo criterio de "kind=data" que ya
+    usa el resto del proyecto para datos calibrados a mano.
+- **`FirstCoastZone.ts`**: `isTree`/`isRock`/`isBush` ahora comparan
+  `resolveNoiseAt(...)` contra un umbral en vez de `hashedChance` — el
+  resultado es un bosque con manchas y claros reales (caminables), no solo
+  copas de tamaño distinto sobre el mismo punteado uniforme. `hashedChance`
+  quedo sin usos y se elimino.
+- **Frente C — gradiente de edad oeste-este** (`IsometricTilemapRenderer.ts`,
+  100% render): el tamaño de un arbol dobla como edad
+  (`TreeAgeScales.Young/Medium/Old`, `container.setScale`). Un gradiente
+  lineal sobre `coordinate.x / mapWidthInTiles` hace que "joven" sea
+  progresivamente menos probable cuanto mas al oeste — el renderer no tiene
+  ninguna nocion de "arboledas", solo una coordenada y el ancho del mapa.
+  Que el efecto se concentre justo donde ya esta el campamento abandonado
+  (la arboleda mas al oeste) es consecuencia emergente de la geografia, no
+  un caso especial — la conexion con `WORLD_DIRECTION.md` ("una arboleda
+  con menos arboles jovenes") es exactamente el ejemplo que el documento
+  propone, nunca narrada ni marcada en juego.
+- **Amaro** (`NpcRenderer.ts`): silueta piernas/torso/cabeza en vez de un
+  blob con cabeza, mas proporciones humanas. Sombrero de pescador ancho en
+  `colors.poiSail` — el mismo tono ya usado en la vela del naufragio, cero
+  color nuevo — como marca de identidad reutilizable para diferenciar un
+  futuro segundo NPC sin necesitar nombre. Cabeza levemente adelantada y
+  baja en vez de centrada, un encorvamiento sutil que sugiere edad sin
+  geometria extra. La sombra direccional (`createSoftShadow`) ya estaba
+  aplicada correctamente desde que Amaro existe — sin cambios ahi.
+- **Jabalí** (`CreatureRenderer.ts`): cuerpo mas bajo y ancho (lomo bajo),
+  cresta dorsal oscurecida, hocico protuberante, y dos patas cortas que se
+  asoman bajo el cuerpo (listadas antes que el cuerpo en el contenedor para
+  que queden tapadas por su silueta) — deja de leerse como "cuadrupedo
+  generico".
+- **Pulso de respiracion** (ambos, incluido — no opcional, resulto barato):
+  un tween `scaleY` con `yoyo: true, repeat: -1` sobre un contenedor interno
+  separado de la sombra, mismo patron exacto que `EnvironmentEffects` ya usa
+  para el brillo del agua — cero API nueva de Phaser, cero costo de JS por
+  frame (Phaser ya administra tweens activos).
+- **Performance**: mismo stress-test de Sprint 15 (redibujado forzado en
+  cada cruce de tile durante 3s). Idle: 59.8 FPS promedio / 59.1 minimo.
+  Bajo estres con el nuevo algoritmo de distribucion: 57.1 promedio / 55.4
+  minimo — una caida de ~5%, muy por debajo del ~15-28% que hizo descartar
+  el bordeado de transicion en Sprint 15. Se mantiene, sin reservas.
+- **No se toco** `WorldClock`, `DangerManager`, `InteractableRegistry`,
+  `NpcRegistry`, `CombatManager` ni el sistema de guardado — sprint
+  puramente de render, con la unica excepcion explicada y confirmada del
+  algoritmo interno de `isTree`/`isRock`/`isBush`.
+- Sin assets externos, sin libreria de ruido externa: todo geometria
+  primitiva con color y ~55 lineas de matematica propia, mismo criterio del
+  proyecto desde Sprint 1.
+
 ## Sprint 17 - Ambient Soundscape
 
 - **Auditoria previa** (obligatoria antes de programar): el pipeline de sonido

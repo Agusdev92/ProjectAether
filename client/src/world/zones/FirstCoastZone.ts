@@ -1,5 +1,6 @@
 import { AssetManifest } from "@assets/AssetManifest";
 import { GameConstants } from "@shared/config/GameConstants";
+import { resolveNoiseAt } from "@shared/math/NoiseField";
 import {
   AmbientEffectTypes,
   AmbientSoundChannels,
@@ -500,6 +501,32 @@ function isPath(coordinate: TileCoordinate): boolean {
   return campToPlaza || plaza || roadToTown || lookoutSpur;
 }
 
+/**
+ * Sprint 18: noise-modulated density replaces the old uniform hashedChance
+ * scatter — trees now cluster into clumps with real walkable clearings
+ * between them instead of an even 1-in-3 punteado. Each region gets its own
+ * threshold (and rocks/bushes their own seed) because they are
+ * different-sized samples of the same continuous noise field, not different
+ * densities by design — thresholds were calibrated empirically (see
+ * CHANGELOG.md) so total coverage stays close to the previous hashedChance
+ * counts (133 trees: 48 west + 85 east) rather than accidentally emptying or
+ * flooding a grove.
+ */
+const TREE_NOISE_FREQUENCY = 0.2;
+const WESTERN_GROVE_TREE_THRESHOLD = 0.32;
+const EASTERN_GROVE_TREE_THRESHOLD = 0.55;
+
+const ROCK_NOISE_FREQUENCY = 0.22;
+const ROCK_NOISE_SEED = 100;
+const CLIFF_BASE_ROCK_THRESHOLD = 0.56;
+const LOOKOUT_HILL_ROCK_FREQUENCY = 0.3;
+const LOOKOUT_HILL_ROCK_SEED = 200;
+const LOOKOUT_HILL_ROCK_THRESHOLD = 0.6;
+
+const BUSH_NOISE_FREQUENCY = 0.2;
+const BUSH_NOISE_SEED = 300;
+const BUSH_THRESHOLD = 0.68;
+
 /** Two groves flanking the path so sight lines open and close while walking. */
 function isTree(coordinate: TileCoordinate): boolean {
   const westernGrove =
@@ -507,7 +534,21 @@ function isTree(coordinate: TileCoordinate): boolean {
   const easternGrove =
     coordinate.x >= 30 && coordinate.x <= 44 && coordinate.y >= 17 && coordinate.y <= 33;
 
-  return (westernGrove || easternGrove) && hashedChance(coordinate, 3);
+  if (westernGrove) {
+    return (
+      resolveNoiseAt(coordinate.x, coordinate.y, TREE_NOISE_FREQUENCY) >
+      WESTERN_GROVE_TREE_THRESHOLD
+    );
+  }
+
+  if (easternGrove) {
+    return (
+      resolveNoiseAt(coordinate.x, coordinate.y, TREE_NOISE_FREQUENCY) >
+      EASTERN_GROVE_TREE_THRESHOLD
+    );
+  }
+
+  return false;
 }
 
 /**
@@ -524,7 +565,25 @@ function isRock(coordinate: TileCoordinate): boolean {
   const lookoutHill =
     coordinate.x >= 7 && coordinate.x <= 15 && coordinate.y >= 3 && coordinate.y <= 8;
 
-  return (cliffBase && hashedChance(coordinate, 3)) || (lookoutHill && hashedChance(coordinate, 4));
+  if (cliffBase) {
+    return (
+      resolveNoiseAt(coordinate.x, coordinate.y, ROCK_NOISE_FREQUENCY, ROCK_NOISE_SEED) >
+      CLIFF_BASE_ROCK_THRESHOLD
+    );
+  }
+
+  if (lookoutHill) {
+    return (
+      resolveNoiseAt(
+        coordinate.x,
+        coordinate.y,
+        LOOKOUT_HILL_ROCK_FREQUENCY,
+        LOOKOUT_HILL_ROCK_SEED
+      ) > LOOKOUT_HILL_ROCK_THRESHOLD
+    );
+  }
+
+  return false;
 }
 
 /** True when any tile within the given radius is a path tile. */
@@ -542,7 +601,14 @@ function hasPathNearby(coordinate: TileCoordinate, radius: number): boolean {
 
 /** Scattered bushes on the vegetation fringe just above the beach. */
 function isBush(coordinate: TileCoordinate): boolean {
-  return coordinate.y >= 30 && coordinate.y <= 36 && hashedChance(coordinate, 6);
+  if (coordinate.y < 30 || coordinate.y > 36) {
+    return false;
+  }
+
+  return (
+    resolveNoiseAt(coordinate.x, coordinate.y, BUSH_NOISE_FREQUENCY, BUSH_NOISE_SEED) >
+    BUSH_THRESHOLD
+  );
 }
 
 function isInsideAnyPoiFootprint(coordinate: TileCoordinate): boolean {
@@ -575,10 +641,4 @@ function distanceToSegment(
   const closestY = start.y + projection * segmentY;
 
   return Math.hypot(point.x - closestX, point.y - closestY);
-}
-
-function hashedChance(coordinate: TileCoordinate, divisor: number): boolean {
-  const hash = coordinate.x * 73_856_093 + coordinate.y * 19_349_663;
-
-  return Math.abs(hash) % divisor === 0;
 }

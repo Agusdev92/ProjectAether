@@ -128,7 +128,11 @@ export class IsometricTilemapRenderer {
    */
   private createFeatureObject(tile: TileRecord): Phaser.GameObjects.Container {
     if (tile.feature === TileFeatureTypes.Tree) {
-      return this.createTreeObject(pickVariant(tile.coordinate, 3));
+      const tree = this.createTreeObject(pickVariant(tile.coordinate, 3));
+
+      tree.setScale(resolveTreeAgeScale(tile.coordinate, this.tilemap.definition.widthInTiles));
+
+      return tree;
     }
 
     if (tile.feature === TileFeatureTypes.Rock) {
@@ -303,6 +307,47 @@ function pickVariant(coordinate: TileCoordinate, variantCount: number): number {
   const hash = Math.abs(coordinate.x * 92_821 + coordinate.y * 68_917);
 
   return hash % variantCount;
+}
+
+/** Scale multipliers standing in for young/medium/old trees — pure render, no new geometry. */
+const TreeAgeScales = {
+  Young: 0.82,
+  Medium: 1,
+  Old: 1.18
+} as const;
+
+/**
+ * Sprint 18 Frente C: tree size doubles as age. A gentle west-to-east
+ * gradient makes "young" progressively less likely the further west a tree
+ * sits — never a hard rule, never narrated, and computed from nothing more
+ * than a coordinate and the map's own width. This renderer has no notion of
+ * "groves" at all; that the effect concentrates near the abandoned camp
+ * (west side of the map) is an emergent consequence of geography, not a
+ * special case written for that specific spot — WORLD_DIRECTION.md names
+ * this exact idea ("una arboleda con menos árboles jóvenes") as a candidate
+ * signal for the world's slow decline.
+ */
+function resolveTreeAgeScale(coordinate: TileCoordinate, mapWidthInTiles: number): number {
+  const westToEastPosition = coordinate.x / mapWidthInTiles;
+  const ageRoll = pickAgeRoll(coordinate);
+  const youngThreshold = 0.2 + westToEastPosition * 0.35;
+
+  if (ageRoll < youngThreshold) {
+    return TreeAgeScales.Young;
+  }
+
+  if (ageRoll < youngThreshold + 0.35) {
+    return TreeAgeScales.Medium;
+  }
+
+  return TreeAgeScales.Old;
+}
+
+/** Independent from pickVariant's hash (different primes) so age never correlates with canopy shape. */
+function pickAgeRoll(coordinate: TileCoordinate): number {
+  const hash = Math.abs(coordinate.x * 15_731 + coordinate.y * 789_221);
+
+  return (hash % 1000) / 1000;
 }
 
 /**

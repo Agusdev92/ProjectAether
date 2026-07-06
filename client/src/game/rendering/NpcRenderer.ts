@@ -90,15 +90,50 @@ export class NpcRenderer {
     container.setDepth(GameConstants.depth.entities + screen.y);
   }
 
+  /**
+   * Human-proportioned silhouette (legs/torso/head instead of one blob) and
+   * a wide fisherman's hat in `colors.poiSail` — the same tone already used
+   * on the shipwreck's sail, so the color itself ties Amaro to the sea
+   * without adding a single new palette entry. The hat is his identity
+   * marker: a future second NPC needs only a different silhouette
+   * accessory to read as a different person at a glance, no name required.
+   * The head sits slightly forward and low rather than centered, a stoop
+   * standing in for age with no extra geometry. A slow breathing pulse
+   * (scaleY yoyo, same tween shape EnvironmentEffects already uses for
+   * water shimmer) lives on an inner "body" container so the shadow stays
+   * still — only living things breathe.
+   */
   private createNpcObject(): Phaser.GameObjects.Container {
-    const shadow = createSoftShadow(this.scene, 40, 14, 10);
-    const body = this.scene.add.ellipse(0, -14, 26, 40, this.color(GameConstants.colors.npc), 1);
-    const head = this.scene.add.ellipse(0, -34, 18, 18, this.color(GameConstants.colors.npc), 1);
+    const shadow = createSoftShadow(this.scene, 42, 15, 12);
+    const legs = this.scene.add.rectangle(
+      0,
+      6,
+      16,
+      20,
+      this.color(GameConstants.colors.poiWoodDark),
+      1
+    );
+    const torso = this.scene.add.ellipse(-2, -16, 22, 30, this.color(GameConstants.colors.npc), 1);
+    const head = this.scene.add.ellipse(-4, -38, 15, 15, this.color(GameConstants.colors.npc), 1);
+    const hat = this.scene.add.ellipse(-4, -44, 28, 9, this.color(GameConstants.colors.poiSail), 1);
 
-    body.setStrokeStyle(2, this.color(GameConstants.colors.npcShadow), 0.6);
+    legs.setStrokeStyle(2, this.color(GameConstants.colors.npcShadow), 0.5);
+    torso.setStrokeStyle(2, this.color(GameConstants.colors.npcShadow), 0.6);
     head.setStrokeStyle(2, this.color(GameConstants.colors.npcShadow), 0.6);
+    hat.setStrokeStyle(2, this.color(GameConstants.colors.npcShadow), 0.5);
 
-    return this.scene.add.container(0, 0, [shadow, body, head]);
+    const body = this.scene.add.container(0, 0, [legs, torso, head, hat]);
+
+    this.scene.tweens.add({
+      targets: body,
+      scaleY: 1.025,
+      duration: 2200,
+      ease: "Sine.easeInOut",
+      yoyo: true,
+      repeat: -1
+    });
+
+    return this.scene.add.container(0, 0, [shadow, body]);
   }
 
   private color(hex: string): number {
