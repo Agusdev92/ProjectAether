@@ -68,7 +68,8 @@ ProjectAether/
 │     │  ├─ atmosphere/
 │     │  │  ├─ AmbientParticleSystem.ts
 │     │  │  ├─ EnvironmentEffects.ts
-│     │  │  └─ LookoutCamera.ts
+│     │  │  ├─ LookoutCamera.ts
+│     │  │  └─ WeatherPresenter.ts
 │     │  ├─ config.ts
 │     │  ├─ input/
 │     │  │  ├─ ActionKey.ts
@@ -173,6 +174,8 @@ ProjectAether/
 │     │  │  ├─ TerrainResolver.ts
 │     │  │  ├─ TileTypes.ts
 │     │  │  └─ WorldTilemap.ts
+│     │  ├─ weather/
+│     │  │  └─ WeatherCycle.ts
 │     │  ├─ zones/
 │     │  │  ├─ AsterfallZone.ts
 │     │  │  ├─ FirstCoastZone.ts
@@ -386,6 +389,13 @@ ProjectAether/
   redibujado por-tile de `IsometricTilemapRenderer`, costo cero en runtime
   mas alla del dibujo inicial. Dos capas con distinto `scrollFactor` para
   parallax sutil.
+- `client/src/world/weather/WeatherCycle.ts`: `resolveWeatherForDay`, funcion
+  pura que resuelve el clima del dia a partir de `elapsedGameSeconds` — mismo
+  patron que `resolveScheduledTile` para NPCs: ciclo fijo, sin azar, sin
+  estado propio.
+- `client/src/game/atmosphere/WeatherPresenter.ts`: viñeta de tormenta sobre
+  la camara del mundo (mismo patron que `PlayerVitalityPresenter`), con fade
+  de varios segundos en vez de un cambio instantaneo.
 - `eslint.config.js`: reglas de lint para TypeScript.
 - `.prettierrc.json`: reglas de formato compartidas.
 
@@ -701,6 +711,62 @@ ProjectAether/
   escalar el area interactiva redibujada habria escalado ese mismo costo de
   forma aproximadamente cuadratica. La sensacion de escala viene de una capa
   estatica (horizonte) y de zoom, nunca de redibujar mas mundo real.
+- Sistema de clima (`world/weather/`, Sprint 16): el pipeline de clima existia
+  desde Sprint 4 (`WeatherTypes`, multiplicadores de viento por clima) sin que
+  nada llamara `setWeather()` jamas — el clima era 100% estatico. Este sprint
+  no crea el concepto, activa un motor que ya estaba tendido esperando.
+- Dos climas, no una lista larga (Pilar 15): Despejado y Tormenta. Rain/Fog/
+  Snow quedan exactamente como Sprint 4 los dejo — declarados, sin
+  comportamiento — hasta que un sprint futuro les de una razon mecanica real,
+  mismo criterio ya aplicado ahi.
+- `resolveWeatherForDay` (mismo patron que `resolveScheduledTile` para NPCs):
+  ciclo fijo de `GameConstants.weather.cycleDays` dias, nunca un hash ni
+  `Math.random()`, para que un jugador atento pueda aprender el ritmo por su
+  cuenta (Pilar 5) en vez de que se lo expliquen. Justificado numericamente
+  contra el reloj actual (`dayLengthInGameSeconds: 86400`,
+  `timeScale: 80` -> 18 minutos reales por dia de juego): un ciclo de 3 dias
+  (54 min entre tormentas, 1 de cada 3 dias) se siente como el clima por
+  defecto un tercio del tiempo; uno de 7 (126 min, 1 de cada 7) puede agotar
+  una sesion entera de "Horas 0-2" (`PLAYER_EXPERIENCE.md`) sin una sola
+  tormenta; 4 dias (72 min, 1 de cada 4) garantiza al menos una tormenta
+  dentro de cualquier sesion de esa duracion, con la segunda cayendo
+  naturalmente en una sesion posterior en vez de la misma sentada.
+- Sin persistencia nueva: el clima es funcion pura de
+  `WorldClock.snapshot.elapsedGameSeconds`, que ya persiste dentro de
+  `WorldClockSnapshot`. Recargar la pagina reconstruye el mismo clima solo —
+  mismo criterio que `resolveScheduledTile`, cero cambios a
+  `WorldSaveSnapshot`/`SaveStore`.
+- Acoplamiento por inyeccion, no por consulta: `DangerManager.update()` ya
+  recibia `timeOfDay` como parametro en vez de preguntarle a `WorldClock`
+  directamente. `weather` se agrega exactamente igual — `WorldSession` calcula
+  el clima del dia y se lo pasa; `DangerManager` sigue sin importar
+  `AtmosphereManager` ni conocer nada mas alla del valor ya resuelto.
+- `DangerZoneDefinition.activeInWeather` es dato opcional y aditivo a
+  `activeTimeOfDay` (una marea de tormenta no distingue la hora): la zona de
+  la orilla declara `activeInWeather: [Storm]` y `isZoneActive` hace un OR
+  entre ambas condiciones — cero logica especial nueva en el manager, cero
+  codigo nuevo de consecuencia (reutiliza integramente el barrido de recursos
+  y el reposicionamiento ya construidos en Sprint 13).
+- No se toco `WorldClock` (solo se lee `.snapshot.elapsedGameSeconds`, getter
+  publico existente), ni `InteractableRegistry`, ni `NpcRegistry`, ni el
+  sistema de guardado — el efecto mecanico elegido (marea extendida) vive
+  enteramente en `DangerManager`/`FirstCoastZone`, sin tocar ningun otro
+  sistema. La idea de que Amaro se refugie durante una tormenta queda
+  mencionada como candidata futura, no entregada este sprint: profundidad en
+  un sistema en vez de un toque superficial en varios.
+- Comunicacion enteramente diegetica, nada de widget ni numeros: el viento ya
+  escalaba por clima desde Sprint 4 (`WeatherWindMultipliers.Storm = 1.6`), asi
+  que activar `setWeather()` de verdad ya intensifica hojas y motas sin tocar
+  esa logica. Se suma una tercera especie de particula ("raindrop") en
+  `AmbientParticleSystem`, con un modelo de movimiento propio (caida vertical
+  dominante, leve deriva lateral por viento) distinto del de hojas/motas. El
+  Developer Overlay ya escuchaba `atmosphere:weather-changed` desde Sprint 4
+  (solo nunca se re-emitia tras el arranque); `WorldScene` ahora lo re-emite
+  en cada cambio real, mismo patron ya usado para `world:time-of-day-changed`
+  — cero cambios en `UIScene.ts` ni en `GameEventMap`.
+- `WeatherPresenter` reutiliza colores existentes (`colors.tileCliffEdge` para
+  la viñeta, `colors.seaFoam` para la lluvia) en vez de sumar una paleta
+  nueva, mismo criterio que Sprint 15 aplico para el horizonte.
 - Las colisiones de agua, arboles, rocas y arbustos se calculan en dominio, no
   en Phaser.
 - La profundidad de entidades usa la posicion proyectada en pantalla, preparando
@@ -789,6 +855,13 @@ Incluido:
   consistente, variantes de arbol/roca/arbusto/decoracion de piso, silueta de
   montaña estatica al norte visible desde el mirador, y zoom de camara por
   defecto levemente reducido (0.92).
+- Sistema de clima: dos climas (Despejado, Tormenta) en un ciclo fijo de 4
+  dias de calendario del mundo, nunca al azar. Comunicado enteramente por el
+  mundo (viento mas fuerte, gotas de lluvia, viñeta sutil sobre la camara) —
+  sin widget ni numeros en el HUD. Efecto mecanico real: una tormenta extiende
+  la marea peligrosa de la orilla a todo el dia, no solo a la noche. Sin
+  persistencia nueva (se deriva del reloj del mundo, igual que la hora del
+  dia); el Developer Overlay lo refleja en vivo.
 
 No incluido en esta tarea:
 
@@ -811,4 +884,12 @@ No incluido en esta tarea:
   solo repite una notificacion).
 - Mas zonas de peligro que la marea nocturna, mas especies de criaturas,
   durabilidad de armas/armadura.
+- Lluvia, niebla y nieve como climas activos: siguen declarados en
+  `WeatherTypes` sin comportamiento, igual que desde Sprint 4, hasta que un
+  sprint futuro les de una razon mecanica propia.
+- Rutina de Amaro sensible al clima (refugiarse durante una tormenta): idea
+  mencionada, no entregada este sprint — se prefirio profundidad en un solo
+  sistema (la marea) antes que un toque superficial en varios.
+- Efecto de clima sobre recoleccion, combate o visibilidad: el sprint eligio
+  la marea como unico efecto mecanico real, a proposito.
 - Servidor de juego.

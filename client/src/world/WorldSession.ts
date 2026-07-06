@@ -37,6 +37,7 @@ import type { ConsumedStack, ItemGrant } from "@world/inventory/InventoryTypes";
 import { NpcRegistry } from "@world/npc/NpcRegistry";
 import { resolveScheduledTile } from "@world/npc/NpcTypes";
 import type { NpcPositionView } from "@world/npc/NpcTypes";
+import { resolveWeatherForDay } from "@world/weather/WeatherCycle";
 import { PoiRegistry } from "@world/poi/PoiRegistry";
 import { PoiTypes } from "@world/poi/PoiTypes";
 import type { PoiDefinition } from "@world/poi/PoiTypes";
@@ -114,10 +115,12 @@ export class WorldSession {
     this.player.move(movement, deltaSeconds, this.collision);
     this.atmosphere.update(deltaSeconds);
     this.clock.update(deltaSeconds);
+    this.atmosphere.setWeather(resolveWeatherForDay(this.clock.snapshot.elapsedGameSeconds));
 
     const triggeredZone = this.danger.update(
       this.player.position,
       this.clock.timeOfDay,
+      this.atmosphere.currentWeather,
       deltaSeconds
     );
 
@@ -215,12 +218,13 @@ export class WorldSession {
   }
 
   /**
-   * Danger zones currently active for the clock's time of day, regardless of
-   * player position — presentation uses this to warn before anyone steps in,
-   * never gated on proximity (the risk must be legible before it is felt).
+   * Danger zones currently active for the clock's time of day and today's
+   * weather, regardless of player position — presentation uses this to warn
+   * before anyone steps in, never gated on proximity (the risk must be
+   * legible before it is felt).
    */
   public getActiveDangerZones(): readonly DangerZoneDefinition[] {
-    return this.danger.getActiveZones(this.clock.timeOfDay);
+    return this.danger.getActiveZones(this.clock.timeOfDay, this.atmosphere.currentWeather);
   }
 
   /**

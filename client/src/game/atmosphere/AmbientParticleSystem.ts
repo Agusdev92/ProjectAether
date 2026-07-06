@@ -3,7 +3,7 @@ import { projectWindToScreen } from "@game/atmosphere/EnvironmentEffects";
 import { GameConstants } from "@shared/config/GameConstants";
 import type { WindState } from "@world/atmosphere/AtmosphereTypes";
 
-type ParticleKind = "leaf" | "mote";
+type ParticleKind = "leaf" | "mote" | "raindrop";
 
 type Particle = {
   readonly gameObject: Phaser.GameObjects.Shape;
@@ -16,7 +16,11 @@ type Particle = {
 /** Pixels per second each kind travels at full wind intensity. */
 const DriftSpeeds: Readonly<Record<ParticleKind, number>> = {
   leaf: 74,
-  mote: 22
+  mote: 22,
+  // Rain falls, it does not drift — far faster than anything wind-blown, and
+  // its motion (see moveRaindrop) is dominated by a straight downward fall
+  // rather than the wind direction the other two kinds follow.
+  raindrop: 340
 };
 
 /**
@@ -33,13 +37,15 @@ export class AmbientParticleSystem {
   public constructor(private readonly scene: Phaser.Scene) {
     this.createLeaves(GameConstants.atmosphere.leafParticleCount);
     this.createMotes(GameConstants.atmosphere.moteParticleCount);
+    this.createRaindrops(GameConstants.atmosphere.rainParticleCount);
   }
 
   public update(
     deltaSeconds: number,
     wind: WindState,
     leavesEnabled: boolean,
-    motesEnabled: boolean
+    motesEnabled: boolean,
+    rainEnabled: boolean
   ): void {
     this.elapsedSeconds += deltaSeconds;
 
@@ -47,7 +53,7 @@ export class AmbientParticleSystem {
     const windScreen = projectWindToScreen(wind);
 
     for (const particle of this.particles) {
-      const enabled = particle.kind === "leaf" ? leavesEnabled : motesEnabled;
+      const enabled = this.isEnabled(particle.kind, leavesEnabled, motesEnabled, rainEnabled);
 
       particle.gameObject.setVisible(enabled);
 
@@ -55,8 +61,25 @@ export class AmbientParticleSystem {
         continue;
       }
 
-      this.moveParticle(particle, deltaSeconds, wind, windScreen, view);
+      if (particle.kind === "raindrop") {
+        this.moveRaindrop(particle, deltaSeconds, wind, windScreen, view);
+      } else {
+        this.moveParticle(particle, deltaSeconds, wind, windScreen, view);
+      }
     }
+  }
+
+  private isEnabled(
+    kind: ParticleKind,
+    leavesEnabled: boolean,
+    motesEnabled: boolean,
+    rainEnabled: boolean
+  ): boolean {
+    if (kind === "leaf") {
+      return leavesEnabled;
+    }
+
+    return kind === "mote" ? motesEnabled : rainEnabled;
   }
 
   private moveParticle(
@@ -72,6 +95,28 @@ export class AmbientParticleSystem {
     particle.gameObject.x += windScreen.x * speed * deltaSeconds;
     particle.gameObject.y += windScreen.y * speed * deltaSeconds + bob;
     particle.gameObject.rotation += particle.spinPerSecond * deltaSeconds;
+    particle.gameObject.setDepth(GameConstants.depth.entities + particle.gameObject.y + 120);
+
+    this.wrapIntoView(particle.gameObject, view);
+  }
+
+  /**
+   * Rain falls straight down at speed, with only a slight sideways skew from
+   * wind (a storm's gusts blow rain sideways, but never enough to read as
+   * wind-drifted debris like leaves/motes) — a distinct movement model from
+   * moveParticle rather than a shared one forced to cover both cases.
+   */
+  private moveRaindrop(
+    particle: Particle,
+    deltaSeconds: number,
+    wind: WindState,
+    windScreen: Readonly<{ x: number; y: number }>,
+    view: Phaser.Geom.Rectangle
+  ): void {
+    const fallSpeed = particle.driftSpeed * Math.max(0.5, wind.intensity);
+
+    particle.gameObject.x += windScreen.x * fallSpeed * 0.3 * deltaSeconds;
+    particle.gameObject.y += fallSpeed * deltaSeconds;
     particle.gameObject.setDepth(GameConstants.depth.entities + particle.gameObject.y + 120);
 
     this.wrapIntoView(particle.gameObject, view);
@@ -139,6 +184,28 @@ export class AmbientParticleSystem {
         kind: "mote",
         driftSpeed: DriftSpeeds.mote + Phaser.Math.Between(-6, 6),
         bobPhase: Math.random() * Math.PI * 2,
+        spinPerSecond: 0
+      });
+    }
+  }
+
+  /** Reuses the existing sea-foam color: a raindrop is a pale streak, not a new palette entry. */
+  private createRaindrops(count: number): void {
+    for (let index = 0; index < count; index += 1) {
+      const raindrop = this.scene.add.rectangle(
+        Phaser.Math.Between(0, GameConstants.resolution.width),
+        Phaser.Math.Between(0, GameConstants.resolution.height),
+        2,
+        16,
+        Phaser.Display.Color.HexStringToColor(GameConstants.colors.seaFoam).color,
+        0.5
+      );
+
+      this.particles.push({
+        gameObject: raindrop,
+        kind: "raindrop",
+        driftSpeed: DriftSpeeds.raindrop + Phaser.Math.Between(-30, 30),
+        bobPhase: 0,
         spinPerSecond: 0
       });
     }

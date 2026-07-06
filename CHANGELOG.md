@@ -1,5 +1,89 @@
 # Changelog
 
+## Sprint 16 - Weather System
+
+- Hallazgo previo a implementar: el pipeline de clima existia desde Sprint 4
+  (`WeatherTypes`: Clear/Wind/Rain/Fog/Storm/Snow, con multiplicadores de
+  viento ya definidos para los seis) pero `setWeather()` nunca se llamaba en
+  ningun lado — el clima era 100% estatico, siempre el `initialWeather` de la
+  zona. Este sprint activa ese motor en vez de construir uno nuevo.
+- **Dos climas, no una lista larga (Pilar 15): Despejado y Tormenta.**
+  Rain/Fog/Snow quedan exactamente como Sprint 4 los dejo — declarados, sin
+  comportamiento — hasta que un sprint futuro les de una razon mecanica real.
+- **`world/weather/WeatherCycle.ts`** (nuevo): `resolveWeatherForDay(elapsedGameSeconds)`,
+  funcion pura, mismo patron que `resolveScheduledTile` para NPCs — ciclo
+  fijo de `GameConstants.weather.cycleDays` (4) dias de calendario, nunca
+  `Math.random()`, para que un jugador atento pueda aprender el ritmo por su
+  cuenta (Pilar 5) en vez de que se lo expliquen.
+  - Justificacion numerica del ciclo, contra el reloj actual
+    (`dayLengthInGameSeconds: 86400`, `timeScale: 80` -> 1080s reales = 18
+    minutos reales por dia de juego): un ciclo de 3 dias (54 min entre
+    tormentas, 1 de cada 3 dias stormy) se lee como el clima por defecto un
+    tercio del tiempo, no como un evento. Uno de 7 (126 min, 1 de cada 7)
+    puede agotar una sesion entera de "Horas 0-2" (`PLAYER_EXPERIENCE.md`)
+    sin una sola tormenta — demasiado raro para registrar como sistema. El de
+    4 dias (72 min, 1 de cada 4) garantiza al menos una tormenta dentro de
+    cualquier sesion de esa duracion, con la segunda cayendo naturalmente en
+    una sesion posterior en vez de la misma sentada.
+- **Efecto mecanico real, uno solo y profundo (no varios superficiales):**
+  la marea nocturna (`FirstCoastZone`, `danger-tide-shoreline`) gana
+  `activeInWeather: [Storm]`. Durante una tormenta, la orilla es peligrosa
+  todo el dia, no solo de noche — un jugador que aprendio "de dia la orilla
+  es segura" (Sprint 13) tiene que aprender una segunda regla: el cielo
+  importa tanto como el reloj. Cero codigo nuevo de consecuencia: reutiliza
+  integramente el barrido de recursos y el reposicionamiento ya construidos.
+- **Acoplamiento por inyeccion, no por consulta**, extendiendo el patron ya
+  establecido: `DangerManager.update()`/`getActiveZones()` ya recibian
+  `timeOfDay` como parametro en vez de preguntarle a `WorldClock`
+  directamente. `weather` se agrega exactamente igual — `WorldSession` calcula
+  el clima del dia (`atmosphere.setWeather(resolveWeatherForDay(...))`) y se
+  lo pasa a `danger.update()`; `DangerManager` sigue sin importar
+  `AtmosphereManager` ni `WeatherTypes` mas alla del valor ya resuelto que
+  recibe. `DangerZoneDefinition.activeInWeather` es dato opcional y aditivo a
+  `activeTimeOfDay` — `isZoneActive` hace un OR entre ambas condiciones, cero
+  logica especial nueva en el manager.
+- **Sin persistencia nueva**: el clima es funcion pura de
+  `WorldClock.snapshot.elapsedGameSeconds`, que ya persiste dentro de
+  `WorldClockSnapshot`. Recargar la pagina reconstruye el mismo clima solo —
+  mismo criterio que `resolveScheduledTile`, cero cambios a
+  `WorldSaveSnapshot`/`SaveStore`.
+- **Comunicacion enteramente diegetica, nada de widget ni numeros:**
+  - El viento ya escalaba por clima desde Sprint 4
+    (`WeatherWindMultipliers.Storm = 1.6`, el multiplicador mas alto ya
+    definido) — activar `setWeather()` de verdad ya intensifica hojas y motas
+    sin tocar esa logica.
+  - Nueva tercera especie de particula ("raindrop") en
+    `AmbientParticleSystem`, con un modelo de movimiento propio
+    (`moveRaindrop`: caida vertical dominante a velocidad fija, leve deriva
+    lateral por viento) distinto del de hojas/motas (`moveParticle`, deriva
+    dominada por direccion de viento). Reutiliza `colors.seaFoam`, sin paleta
+    nueva.
+  - **`game/atmosphere/WeatherPresenter.ts`** (nuevo): viñeta sutil sobre la
+    camara del mundo durante tormenta, mismo patron que
+    `PlayerVitalityPresenter` (rectangulo de pantalla completa,
+    `scrollFactor(0)`, nunca un panel de HUD). Reutiliza
+    `colors.tileCliffEdge`. Fade de 4s en vez de un cambio instantaneo: el
+    clima solo cambia una vez por dia de calendario, la transicion debe
+    sentirse como el cielo asentandose, no un flag que cambia de golpe.
+  - El Developer Overlay ya escuchaba `atmosphere:weather-changed` desde
+    Sprint 4 (nunca se re-emitia tras el arranque de la escena) —
+    `WorldScene` ahora lo re-emite en cada cambio real de clima, mismo patron
+    de deteccion de cambio ya usado para `world:time-of-day-changed`. Cero
+    cambios en `UIScene.ts` ni en `GameEventMap`: el cableado ya estaba
+    preparado desde Sprint 4.
+- **No se toco** `WorldClock` (solo se lee `.snapshot.elapsedGameSeconds`,
+  getter publico existente), `InteractableRegistry`, `NpcRegistry`, ni el
+  sistema de guardado. La idea de que Amaro se refugie durante una tormenta
+  queda mencionada como candidata futura, no entregada este sprint —
+  profundidad en un sistema (la marea) en vez de un toque superficial en
+  varios.
+- Verificacion manual: se forzo el reloj a un dia de tormenta
+  (`clock.restore({ elapsedGameSeconds: ... })`) y se confirmo el ciclo
+  completo — Despejado -> Tormenta (lluvia visible, viñeta en pantalla,
+  `getActiveDangerZones()` incluye la orilla en pleno dia) -> Despejado de
+  nuevo (viñeta vuelve a 0, zona de peligro se desactiva) — sin errores de
+  consola y ~60 FPS estables durante toda la prueba.
+
 ## Sprint 15 - Visual Polish + World Scale
 
 - Sprint puramente visual y de percepcion de escala — sin mecanicas nuevas,

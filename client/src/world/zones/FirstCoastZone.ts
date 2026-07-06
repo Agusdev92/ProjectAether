@@ -156,6 +156,11 @@ const FirstCoastNpcs: readonly NpcDefinition[] = [
  * nocturno de Amaro (13,34) queda deliberadamente fuera de este radio para no
  * contradecir su propia rutina. retreatTile empuja al jugador tierra adentro,
  * cerca del campamento abandonado — nunca dentro del radio de peligro.
+ *
+ * Sprint 16: una tormenta sube esta misma marea sin importar la hora
+ * (activeInWeather). Un jugador que aprendió "de día la orilla es segura"
+ * tiene que aprender una segunda regla — el cielo importa tanto como el
+ * reloj — sin una sola línea de código nueva de consecuencia.
  */
 const FirstCoastDangerZones: readonly DangerZoneDefinition[] = [
   {
@@ -164,6 +169,7 @@ const FirstCoastDangerZones: readonly DangerZoneDefinition[] = [
     anchorTile: { x: 12, y: 39 },
     radiusInTiles: 4.5,
     activeTimeOfDay: [TimeOfDayTypes.Night],
+    activeInWeather: [WeatherTypes.Storm],
     retreatTile: { x: 17, y: 34 }
   }
 ];

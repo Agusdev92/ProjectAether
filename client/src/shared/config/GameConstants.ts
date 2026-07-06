@@ -117,7 +117,26 @@ export const GameConstants = {
     lookoutZoomInDurationMs: 1600,
     lookoutZoomOutDurationMs: 900,
     leafParticleCount: 14,
-    moteParticleCount: 18
+    moteParticleCount: 18,
+    rainParticleCount: 26
+  },
+  weather: {
+    // Fixed, repeating cycle — never a random roll — so an attentive player
+    // can learn the rhythm on their own (Pilar 5) instead of being told.
+    // Justified against the current clock scale (clock.dayLengthInGameSeconds
+    // = 86400, clock.timeScale = 80 -> 1080 real seconds = 18 real minutes
+    // per game day):
+    // - 3 days (54 real min between storms, 1-in-3 days stormy) reads as the
+    //   default weather a third of the time, not an event.
+    // - 7 days (126 real min, 1-in-7 days) can outlast an entire "Horas 0-2"
+    //   session (PLAYER_EXPERIENCE.md) without a single storm — too rare to
+    //   register as a system at all.
+    // - 4 days (72 real min, 1-in-4 days) guarantees at least one storm
+    //   within any Horas 0-2 session, with the next one landing naturally in
+    //   a later session rather than the same sitting.
+    cycleDays: 4,
+    stormDayIndex: 3,
+    stormTintAlpha: 0.22
   },
   lighting: {
     // A single consistent light-source direction applied to every soft

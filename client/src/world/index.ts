@@ -14,6 +14,7 @@ export { DangerManager } from "@world/danger/DangerManager";
 export { DangerZoneRegistry } from "@world/danger/DangerZoneRegistry";
 export { NpcRegistry } from "@world/npc/NpcRegistry";
 export { resolveScheduledTile } from "@world/npc/NpcTypes";
+export { resolveWeatherForDay } from "@world/weather/WeatherCycle";
 export { InteractableRegistry } from "@world/interaction/InteractableRegistry";
 export { InteractionManager } from "@world/interaction/InteractionManager";
 export { createDefaultInteractionHandlers } from "@world/interaction/InteractionHandlers";

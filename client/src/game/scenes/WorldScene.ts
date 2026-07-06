@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { AmbientParticleSystem } from "@game/atmosphere/AmbientParticleSystem";
 import { EnvironmentEffects } from "@game/atmosphere/EnvironmentEffects";
 import { LookoutCamera } from "@game/atmosphere/LookoutCamera";
+import { WeatherPresenter } from "@game/atmosphere/WeatherPresenter";
 import { ActionKey } from "@game/input/ActionKey";
 import { KeyboardMovement } from "@game/input/KeyboardMovement";
 import { CreatureRenderer } from "@game/rendering/CreatureRenderer";
@@ -21,8 +22,8 @@ import { LocalStorageClockStore } from "@services/persistence/ClockStore";
 import { LocalStorageSaveStore } from "@services/persistence/SaveStore";
 import type { SaveStore } from "@services/persistence/SaveStore";
 import { GameConstants } from "@shared/config/GameConstants";
-import { AmbientEffectTypes } from "@world/atmosphere/AtmosphereTypes";
-import type { AmbientEffectType } from "@world/atmosphere/AtmosphereTypes";
+import { AmbientEffectTypes, WeatherTypes } from "@world/atmosphere/AtmosphereTypes";
+import type { AmbientEffectType, WeatherType } from "@world/atmosphere/AtmosphereTypes";
 import type { TimeOfDayType } from "@world/clock/WorldClockTypes";
 import { tileToWorld, worldToTile } from "@world/coordinates/WorldCoordinates";
 import { CraftingStationKinds } from "@world/crafting/CraftingTypes";
@@ -53,8 +54,10 @@ export class WorldScene extends Phaser.Scene {
   private dangerZoneRenderer?: DangerZoneRenderer;
   private creatureRenderer?: CreatureRenderer;
   private vitalityPresenter?: PlayerVitalityPresenter;
+  private weatherPresenter?: WeatherPresenter;
   private readonly saveStore: SaveStore = new LocalStorageSaveStore();
   private lastTimeOfDay?: TimeOfDayType;
+  private lastWeather?: WeatherType;
   private readonly unsubscribeHandlers: Array<() => void> = [];
 
   public constructor() {
@@ -92,6 +95,7 @@ export class WorldScene extends Phaser.Scene {
     this.dangerZoneRenderer = new DangerZoneRenderer(this, this.tilemapRenderer);
     this.creatureRenderer = new CreatureRenderer(this, this.tilemapRenderer);
     this.vitalityPresenter = new PlayerVitalityPresenter(this);
+    this.weatherPresenter = new WeatherPresenter(this);
     // Built once, never referenced again: purely static background, no sync().
     new HorizonRenderer(this, this.tilemapRenderer);
     this.createAtmosphere();
@@ -202,6 +206,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateInteractionPresentation(deltaSeconds);
     this.updateSurvivalCraftingPresentation();
     this.updateTimeOfDayPresentation();
+    this.updateWeatherPresentation();
     this.npcRenderer?.sync(this.worldSession.getNpcPositions());
     this.dangerZoneRenderer?.sync(this.worldSession.getActiveDangerZones());
     this.creatureRenderer?.sync(this.worldSession.getCreaturePresence());
@@ -232,6 +237,27 @@ export class WorldScene extends Phaser.Scene {
 
     this.lastTimeOfDay = timeOfDay;
     gameEvents.emit("world:time-of-day-changed", { timeOfDay });
+  }
+
+  /**
+   * Announces weather changes on the bus — the same change-detection idiom
+   * already used for time of day, now finally driven by a weather that
+   * actually changes (Sprint 4 wired the event, nothing ever re-emitted it
+   * after scene creation). The Developer Overlay already listens for this
+   * event; it starts reflecting live weather with no changes of its own.
+   */
+  private updateWeatherPresentation(): void {
+    const weather = this.worldSession.atmosphere.currentWeather;
+
+    if (weather === this.lastWeather) {
+      return;
+    }
+
+    this.lastWeather = weather;
+    gameEvents.emit("atmosphere:weather-changed", {
+      zoneId: this.worldSession.zone.tilemap.id,
+      weather
+    });
   }
 
   /**
@@ -414,11 +440,6 @@ export class WorldScene extends Phaser.Scene {
     this.environmentEffects.build(atmosphere.effects);
     this.ambientParticles = new AmbientParticleSystem(this);
     this.lookoutCamera = new LookoutCamera(this);
-
-    gameEvents.emit("atmosphere:weather-changed", {
-      zoneId: zone.tilemap.id,
-      weather: atmosphere.currentWeather
-    });
   }
 
   /** Reads domain atmosphere state and reconciles every visual presenter. */
@@ -426,14 +447,17 @@ export class WorldScene extends Phaser.Scene {
     const { atmosphere } = this.worldSession;
     const effects = atmosphere.effects;
     const wind = atmosphere.wind;
+    const isStorm = atmosphere.currentWeather === WeatherTypes.Storm;
 
     this.environmentEffects?.sync(effects);
     this.ambientParticles?.update(
       deltaSeconds,
       wind,
       isEffectTypeEnabled(effects, AmbientEffectTypes.WindLeaves),
-      isEffectTypeEnabled(effects, AmbientEffectTypes.AmbientMotes)
+      isEffectTypeEnabled(effects, AmbientEffectTypes.AmbientMotes),
+      isStorm
     );
+    this.weatherPresenter?.sync(isStorm);
     this.syncLookout();
   }
 
