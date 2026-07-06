@@ -49,6 +49,23 @@ npm.cmd install
 npm.cmd run dev
 ```
 
+## Documentacion de diseño
+
+Documentos fundacionales en la raiz del repositorio — instrumento de decision,
+no lista de deseos. Toda propuesta de sprint se contrasta contra ellos.
+
+- `PROJECT_PILLARS.md`: los 15 pilares de diseño y las reglas inquebrantables
+  del proyecto.
+- `PLAYER_EXPERIENCE.md`: la emocion objetivo del jugador tramo por tramo
+  (minutos 0-10, horas 0-2, horas 0-20).
+- `FIRST_HOUR_EXPERIENCE.md`: guion espacial detallado de la primera hora de
+  juego en First Coast.
+- `WORLD_DIRECTION.md`: el tono y la direccion narrativa del mundo — que tipo
+  de lugar es Aether (Dark Souls + Breath of the Wild, un mundo en extincion
+  lenta), el rol del jugador (un local que un dia decide irse) y la
+  estructura del viaje (un camino sin destino final). Se modifica solo por
+  decision consciente del autor, nunca por acumulacion de sprints.
+
 ## Estructura
 
 ```text

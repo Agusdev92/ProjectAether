@@ -784,3 +784,25 @@
 - Se agregaron capas `world`, `entities`, `shared`, `services` y `assets`.
 - Se agrego `GameEvents` completamente tipado.
 - Se configuro ESLint y Prettier.
+
+## Documento de dirección de mundo agregado
+
+- Se sumo `WORLD_DIRECTION.md` a la raiz del repositorio, junto a
+  `PROJECT_PILLARS.md` y `PLAYER_EXPERIENCE.md`. No es un sprint: es un
+  documento fundacional, agregado sin modificaciones tal como lo proveyo el
+  autor — sin verificacion de codigo (lint/build/format) porque no toca
+  ningun archivo de codigo.
+- Define, por primera vez de forma explicita, **de que habla Aether**: el
+  tono (Dark Souls + Breath of the Wild), el estado del mundo (extincion
+  lenta, sin apocalipsis ni urgencia dramatica), el rol del jugador (un
+  local de First Coast que un dia decide irse, sin motivo externo), y la
+  estructura del viaje (un camino sin destino final, ninguna region es "la
+  meta"). Incluye tambien el compromiso de que el misterio central del
+  apagon del mundo no tiene respuesta guardada — ni siquiera para el propio
+  equipo — para garantizar que se sostenga indefinidamente.
+- Se agrego en este momento del proyecto (despues de Sprint 17, antes de
+  planificar la segunda region) deliberadamente: con First Coast ya
+  construida en profundidad (NPC, reloj, clima, peligro, combate, sonido),
+  hacia falta un norte narrativo explicito antes de diseñar contenido nuevo
+  — para que la segunda region nazca ya alineada con el tono del mundo, en
+  vez de necesitar una revision retroactiva despues.
